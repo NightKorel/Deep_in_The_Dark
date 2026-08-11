@@ -1,0 +1,525 @@
+// ========================================
+// 潛淵 - 避難所畫面
+// 工坊(V)：強化武器/裝備　家(K)：煮飯/技能管理/整備出發/改名/補充藥水　煉藥站(L)：救出後解鎖
+// ========================================
+
+// 固定小隊，L救出來後會被syncLRoster()/handleBossVictory()動態push進來，不是單純的常數
+const SHELTER_PARTY_IDS = ["K", "主角", "V"];
+
+function shelterRosterHtml() {
+  return SHELTER_PARTY_IDS.map((id) => {
+    let c = CHARACTERS[id];
+    let name = id === "主角" ? (gameState.playerName || "你") : c.name;
+    let lv = getCharacterLevel(id);
+    let atk = (c.baseAtk * getCharacterWeaponMultiplier(id)).toFixed(1);
+    let hp = getCharacterMaxHp(id);
+    return `<div class="roster-card" style="--char-color:${getCharacterColor(id)};">
+      <div class="roster-avatar">${c.icon}</div>
+      <div class="roster-info">
+        <div class="roster-name">${name} <span class="dim">Lv.${lv}</span></div>
+        <div class="dim">武器：${c.weaponName}（攻擊力 ${atk}） ／ 血量 ${hp}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function showShelterScreen() {
+  activeDive = null;
+  checkAchievements(); // 回避難所時統一檢查一次成就（等級/強化/潛晶/圖鑑/救出L等被動條件）
+  let lockedAlchemy = !gameState.storyFlags.lRescued;
+  showScreen(`
+    <h2 class="screen-title">避難所</h2>
+    <p class="dim">裂谷中的一處平台，兩個簡陋的棚子搭在一起。</p>
+
+    <div class="card">
+      <h3>小隊</h3>
+      <div class="roster-list">${shelterRosterHtml()}</div>
+    </div>
+
+    <div class="shelter-buildings">
+      <button class="building-btn" onclick="showWorkshopScreen()">
+        <span class="building-icon">🔨</span>
+        <span class="building-name">工坊</span>
+        <div class="dim">V 負責 · 強化武器與裝備</div>
+      </button>
+      <button class="building-btn" onclick="showHomeScreen()">
+        <span class="building-icon">🏕️</span>
+        <span class="building-name">家</span>
+        <div class="dim">K 負責 · 煮飯／技能／出發</div>
+      </button>
+      <button class="building-btn ${lockedAlchemy ? "locked" : ""}" ${lockedAlchemy ? "disabled" : ""} onclick="showAlchemyScreen()">
+        <span class="building-icon">🧪</span>
+        <span class="building-name">煉藥站</span>
+        <div class="dim">${lockedAlchemy ? "尚未解鎖" : "L 負責"}</div>
+      </button>
+      ${isShelterCasinoUnlocked() ? `
+      <button class="building-btn casino-entrance" onclick="showCasinoScreen()">
+        <span class="building-icon">🃏</span>
+        <span class="building-name">賭場</span>
+        <div class="dim">H 負責 · 用代幣小賭一把（🪙 ${gameState.tokens}）</div>
+      </button>` : ""}
+    </div>
+  `, { withTopbar: true });
+}
+
+// ---------- 工坊：強化武器／裝備 ----------
+
+function showWorkshopScreen() {
+  if (gameState.workshopSuspended) {
+    showScreen(`
+      <h2 class="screen-title">工坊</h2>
+      <div class="card">
+        <p>V 搖搖頭。「維護費還沒補上，工坊的東西暫時動不了。」</p>
+      </div>
+      <button class="action-btn secondary" onclick="showShelterScreen()">返回避難所</button>
+    `, { withTopbar: true });
+    return;
+  }
+  showScreen(`
+    <h2 class="screen-title">工坊</h2>
+    <div class="card">
+      <div class="menu-item" onclick="showUpgradeList('weapon')">⚔️ 強化武器</div>
+      <div class="menu-item" onclick="showUpgradeList('armor')">🛡️ 強化裝備</div>
+    </div>
+    <button class="action-btn secondary" onclick="showShelterScreen()">返回避難所</button>
+  `, { withTopbar: true });
+}
+
+function showUpgradeList(kind) {
+  let rows = SHELTER_PARTY_IDS.map((id) => {
+    let c = CHARACTERS[id];
+    let name = id === "主角" ? (gameState.playerName || "你") : c.name;
+    let cur = gameState.characters[id];
+    let curLv = kind === "weapon" ? cur.weaponLv : cur.armorLv;
+    let cost = getUpgradeCost(curLv);
+    let canAfford = gameState.crystal >= cost;
+
+    let curVal, nextVal, label;
+    if (kind === "weapon") {
+      label = "攻擊力";
+      curVal = (c.baseAtk * getCharacterWeaponMultiplier(id)).toFixed(1);
+      nextVal = (c.baseAtk * Math.pow(UPGRADE_GROWTH_RATE, curLv + 1)).toFixed(1);
+    } else {
+      label = "血量";
+      curVal = getCharacterMaxHp(id);
+      nextVal = Math.ceil(curVal * UPGRADE_GROWTH_RATE);
+    }
+
+    return `<div class="menu-item" style="cursor:default;">
+      <div><strong>${c.icon} ${name}</strong> <span class="dim">目前${label} ${curVal}</span></div>
+      <div class="dim">升級後 ${label}：${nextVal} ／ 花費 💎${cost}</div>
+      <button class="action-btn" style="margin-top:8px;" title="花費 💎${cost}，將${name}的${label}從 ${curVal} 提升到 ${nextVal}" ${canAfford ? "" : "disabled"} onclick="confirmUpgrade('${kind}', '${id}')">確認強化</button>
+    </div>`;
+  }).join("");
+
+  showScreen(`
+    <h2 class="screen-title">${kind === "weapon" ? "強化武器" : "強化裝備"}</h2>
+    <div class="card">${rows}</div>
+    <button class="action-btn secondary" onclick="showWorkshopScreen()">返回</button>
+  `, { withTopbar: true });
+}
+
+function confirmUpgrade(kind, charId) {
+  let cur = gameState.characters[charId];
+  let curLv = kind === "weapon" ? cur.weaponLv : cur.armorLv;
+  let cost = getUpgradeCost(curLv);
+  if (gameState.crystal < cost) return;
+  gameState.crystal -= cost;
+  if (kind === "weapon") cur.weaponLv++;
+  else cur.armorLv++;
+  systemToast(`✅ 強化完成（花費 💎${cost}）`);
+  showUpgradeList(kind);
+}
+
+// ---------- 家：煮飯／技能管理／整備出發／補充藥水（改名移到左上角選單） ----------
+
+function showHomeScreen() {
+  showScreen(`
+    <h2 class="screen-title">家</h2>
+    <div class="card">
+      <div class="menu-item" onclick="showCookingScreen()">🍲 煮飯</div>
+      <div class="menu-item" onclick="showSkillManagementScreen()">📖 技能管理</div>
+      <div class="menu-item" onclick="showDepartScreen()">🎒 整備出發</div>
+      <div class="menu-item" onclick="showPotionRefillScreen()">🧪 補充藥水</div>
+    </div>
+    <button class="action-btn secondary" onclick="showShelterScreen()">返回避難所</button>
+  `, { withTopbar: true });
+}
+
+// ---- 煮飯 ----
+
+function showCookingScreen() {
+  let entries = Object.keys(FOODS).filter((fid) => {
+    let inv = gameState.rawFoodInventory[fid];
+    return inv && (inv.normal > 0 || inv.rare > 0);
+  });
+
+  let body = entries.length === 0
+    ? `<p class="dim">目前沒有食材，出征時打怪有機會撿到。</p>`
+    : entries.map((fid) => {
+        let food = FOODS[fid];
+        let inv = gameState.rawFoodInventory[fid];
+        let normalDesc = foodBuffDescForDisplay(food.buff.type, food.buff.value);
+        let rareDesc = foodBuffDescForDisplay(food.buff.type, food.buff.rareValue);
+        return `<div class="menu-item" style="cursor:default;" title="效果：${normalDesc}（稀有版：${rareDesc}）">
+          <div><strong>${food.name}</strong> <span class="dim">（一般 x${inv.normal}／稀有 x${inv.rare}）</span></div>
+          <div class="dim">做成：${food.dishName} — ${food.flavorText}</div>
+          <button class="action-btn" style="margin-top:8px;" title="效果：${normalDesc}" ${inv.normal > 0 ? "" : "disabled"} onclick="cookFood('${fid}', false)">烹飪一般</button>
+          <button class="action-btn" title="效果：${rareDesc}" ${inv.rare > 0 ? "" : "disabled"} onclick="cookFood('${fid}', true)">烹飪稀有</button>
+        </div>`;
+      }).join("");
+
+  showScreen(`
+    <h2 class="screen-title">煮飯</h2>
+    <div class="card">${body}</div>
+    <div class="card">
+      <h3>料理背包</h3>
+      ${cookedInventoryHtml()}
+    </div>
+    <button class="action-btn secondary" onclick="showHomeScreen()">返回</button>
+  `, { withTopbar: true });
+}
+
+function cookedInventoryHtml() {
+  let keys = Object.keys(gameState.cookedInventory).filter((k) => {
+    let e = gameState.cookedInventory[k];
+    return e && (e.normal > 0 || e.rare > 0);
+  });
+  if (keys.length === 0) return `<p class="dim">目前沒有做好的料理。</p>`;
+  return keys.map((dishId) => {
+    let e = gameState.cookedInventory[dishId];
+    let foodDef = Object.values(FOODS).find((f) => f.dishId === dishId);
+    let desc = foodDef ? foodBuffDescForDisplay(foodDef.buff.type, foodDef.buff.value) : "";
+    return `<div class="dim" title="效果：${desc}">${dishId} × ${e.normal + e.rare}${e.rare > 0 ? `（含稀有 x${e.rare}）` : ""}</div>`;
+  }).join("");
+}
+
+function cookFood(foodId, rare) {
+  let food = FOODS[foodId];
+  let inv = gameState.rawFoodInventory[foodId];
+  if (rare) { if (inv.rare <= 0) return; inv.rare--; }
+  else { if (inv.normal <= 0) return; inv.normal--; }
+
+  if (!gameState.cookedInventory[food.dishId]) gameState.cookedInventory[food.dishId] = { normal: 0, rare: 0 };
+  if (rare) gameState.cookedInventory[food.dishId].rare++;
+  else gameState.cookedInventory[food.dishId].normal++;
+
+  systemToast(`🍲 做好了：${food.dishName}${rare ? "（稀有版）" : ""}`);
+  gameState.stats.dishesCooked++;
+  checkAchievements();
+  showCookingScreen();
+}
+
+// ---- 技能管理 ----
+
+function showSkillManagementScreen() {
+  let rows = SHELTER_PARTY_IDS.map((id) => {
+    let c = CHARACTERS[id];
+    let name = id === "主角" ? (gameState.playerName || "你") : c.name;
+    return `<div class="menu-item" onclick="showSkillManagementForChar('${id}')">${c.icon} ${name}</div>`;
+  }).join("");
+  showScreen(`
+    <h2 class="screen-title">技能管理</h2>
+    <p class="dim">選一個角色查看技能池，已裝備的技能會高亮。</p>
+    <div class="card">${rows}</div>
+    <button class="action-btn secondary" onclick="showHomeScreen()">返回</button>
+  `, { withTopbar: true });
+}
+
+function showSkillManagementForChar(charId) {
+  let c = CHARACTERS[charId];
+  let name = charId === "主角" ? (gameState.playerName || "你") : c.name;
+  let lv = getCharacterLevel(charId);
+  let equipped = gameState.equippedSkills[charId];
+
+  let rows = c.skillIds.map((skillId, idx) => {
+    let skill = SKILLS[skillId];
+    let unlockLevel = getSkillUnlockLevel(charId, skillId);
+    let unlocked = lv >= unlockLevel;
+    let isEquipped = equipped.includes(skillId);
+    let desc = skillDescForDisplay(skill, charId);
+    if (!unlocked) {
+      return `<div class="menu-item disabled">
+        <strong>${skill.name}</strong> <span class="dim">需求等級 ${unlockLevel}（尚未解鎖）</span>
+      </div>`;
+    }
+    return `<div class="menu-item" style="${isEquipped ? "border-left-color:#4fa8d8;" : ""}" onclick="toggleEquippedSkill('${charId}', '${skillId}')">
+      <strong>${skill.name}</strong> ${isEquipped ? '<span class="tag">已裝備</span>' : ""}
+      <div class="dim">${desc}（${skill.maxUses}次）</div>
+    </div>`;
+  }).join("");
+
+  showScreen(`
+    <h2 class="screen-title">${c.icon} ${name} 的技能</h2>
+    <p class="dim">出征前最多裝備4個技能，深潛中不可更換。</p>
+    <div class="card">${rows}</div>
+    <button class="action-btn secondary" onclick="showSkillManagementScreen()">返回</button>
+  `, { withTopbar: true });
+}
+
+// charId：用來即時計算當前武器/裝備等級後的實際數值，不傳的話顯示未強化的基礎數值
+function skillDescForDisplay(skill, charId) {
+  if (skill.type === "attack") {
+    let mult = charId ? getCharacterWeaponMultiplier(charId) : 1;
+    let lo = Math.ceil(skill.dmgRange[0] * mult), hi = Math.ceil(skill.dmgRange[1] * mult);
+    let hits = skill.hits || 1;
+    let base = `對${skill.targetType === "all-enemies" ? "全體敵人" : "單一敵人"}造成 ${lo}~${hi} 傷害${hits > 1 ? `，共${hits}次` : ""}`;
+    if (skill.missRate) base += `，${Math.round(skill.missRate * 100)}%機率未命中`;
+    if (skill.applyBleed) base += `，附加流血`;
+    if (skill.critRateOverride) base += `，爆擊率${Math.round(skill.critRateOverride * 100)}%`;
+    if (skill.stunChance) base += `，${Math.round(skill.stunChance * 100)}%機率震懾`;
+    return base;
+  }
+  if (skill.type === "heal") {
+    let mult = charId ? getCharacterHealMultiplier(charId) : 1;
+    let lo = Math.ceil(skill.healRange[0] * mult), hi = Math.ceil(skill.healRange[1] * mult);
+    return `治療單一隊友 ${lo}~${hi}`;
+  }
+  if (skill.type === "hot") {
+    let mult = charId ? getCharacterHealMultiplier(charId) : 1;
+    let perTurn = Math.ceil(skill.hotHealPerTurn * mult);
+    return `每回合回復單一隊友 ${perTurn} 點血量，持續 ${skill.hotDuration} 回合`;
+  }
+  if (skill.type === "guard") return `成為敵方優先目標，受到傷害-30%`;
+  if (skill.type === "self-heal-percent") return `立即回復自身最大血量的 ${Math.round(skill.healPercent * 100)}%`;
+  if (skill.type === "party-dmg-buff") return `全隊下次攻擊傷害 +${Math.round(skill.dmgBuffPercent * 100)}%`;
+  if (skill.type === "self-charge") return `下次任意攻擊傷害 ×${skill.chargeMultiplier}`;
+  if (skill.type === "self-dodge") return `這回合自身閃避率 +${Math.round(skill.dodgeChance * 100)}%`;
+  if (skill.type === "damage-reduction") return `單一隊友減傷 ${Math.round(skill.damageReduction * 100)}%，持續 ${skill.duration} 回合`;
+  return "";
+}
+
+// 料理buff的顯示文字（煮飯清單／料理背包／整備出發的攜帶料理挑選都會用到）
+// 效果都只到下場戰鬥結束為止，統一在敘述裡註明，不要讓玩家誤以為是永久生效
+function foodBuffDescForDisplay(buffType, value) {
+  let pct = Math.round(value * 100);
+  switch (buffType) {
+    case "maxhp-percent": return `下場戰鬥最大血量 +${pct}%`;
+    case "damage-percent": return `下場戰鬥造成傷害 +${pct}%`;
+    case "dodge-percent": return `下場戰鬥閃避率 +${pct}%`;
+    case "damage-reduction-percent": return `下場戰鬥受到傷害 -${pct}%`;
+    default: return "";
+  }
+}
+
+function toggleEquippedSkill(charId, skillId) {
+  let equipped = gameState.equippedSkills[charId];
+  let idx = equipped.indexOf(skillId);
+  if (idx >= 0) {
+    equipped.splice(idx, 1);
+  } else {
+    if (equipped.length >= 4) {
+      systemToast("最多只能裝備4個技能。", true);
+      return;
+    }
+    equipped.push(skillId);
+  }
+  showSkillManagementForChar(charId);
+}
+
+// 改名已經移到左上角選單(openRenameModal/confirmRenameModal，見02_介面共用與存讀檔.js)
+
+// ---- 補充藥水 ----
+
+function showPotionRefillScreen() {
+  showScreen(`
+    <h2 class="screen-title">補充藥水</h2>
+    <div class="card">
+      <p>目前 🧪 ${gameState.potions} / ${POTION_MAX} 瓶，每瓶 💎${POTION_REFILL_COST}。</p>
+      <button class="action-btn" ${gameState.potions >= POTION_MAX || gameState.crystal < POTION_REFILL_COST ? "disabled" : ""} onclick="buyPotion(1)">+1 瓶</button>
+      <button class="action-btn" ${gameState.potions >= POTION_MAX ? "disabled" : ""} onclick="buyPotion(POTION_MAX)">一鍵補滿</button>
+    </div>
+    <button class="action-btn secondary" onclick="showHomeScreen()">返回</button>
+  `, { withTopbar: true });
+}
+
+function buyPotion(amount, onDone) {
+  let need = Math.min(amount, POTION_MAX - gameState.potions);
+  let affordable = Math.min(need, Math.floor(gameState.crystal / POTION_REFILL_COST));
+  if (affordable <= 0) return;
+  gameState.crystal -= affordable * POTION_REFILL_COST;
+  gameState.potions += affordable;
+  systemToast(`🧪 補充了 ${affordable} 瓶藥水。`);
+  (onDone || showPotionRefillScreen)();
+}
+
+// ---- 整備出發 ----
+
+// 攜帶料理背包制：先從「料理背包」點選一份一般/稀有的料理，再點角色的空槽把它分配過去。
+// 一般跟稀有是分開的兩張卡片，數量各自顯示，不會像以前那樣被自動吃掉稀有版而玩家看不出來。
+// 分配結果存在gameState.foodAssignment（不是session暫存），這樣沒吃掉的料理下次出征會繼續帶著，不用重新分配。
+function departAssignedCount(dishId, rare) {
+  return SHELTER_PARTY_IDS.filter((id) => {
+    let f = gameState.foodAssignment[id];
+    return f && f.dishId === dishId && f.rare === rare;
+  }).length;
+}
+
+function departAvailableCount(dishId, rare) {
+  let e = gameState.cookedInventory[dishId];
+  let total = e ? (rare ? e.rare : e.normal) : 0;
+  return total - departAssignedCount(dishId, rare);
+}
+
+function showDepartScreen() {
+  if (window._departSelectedFood === undefined) window._departSelectedFood = null;
+
+  let dishIds = Object.keys(gameState.cookedInventory).filter((k) => {
+    let e = gameState.cookedInventory[k];
+    return e && (e.normal > 0 || e.rare > 0);
+  });
+  let sel = window._departSelectedFood;
+
+  let backpackCards = [];
+  dishIds.forEach((dishId) => {
+    let foodDef = Object.values(FOODS).find((f) => f.dishId === dishId);
+    [false, true].forEach((rare) => {
+      let count = departAvailableCount(dishId, rare);
+      if (count <= 0) return;
+      let desc = foodDef ? foodBuffDescForDisplay(foodDef.buff.type, rare ? foodDef.buff.rareValue : foodDef.buff.value) : "";
+      let isSelected = sel && sel.dishId === dishId && sel.rare === rare;
+      backpackCards.push(`<div class="food-pick-card${isSelected ? " selected" : ""}" title="${dishId}${rare ? "（稀有）" : ""}，效果：${desc}" onclick="selectDepartFood('${dishId}', ${rare})">
+        <span class="food-pick-icon">${rare ? "✨" : "🍲"}</span>
+        <span class="food-pick-label">${dishId}${rare ? "（稀有）" : ""}</span>
+        <span class="food-pick-count">x${count}</span>
+      </div>`);
+    });
+  });
+  let backpackHtml = backpackCards.length > 0 ? backpackCards.join("") : `<p class="dim">料理背包是空的。</p>`;
+
+  let rows = SHELTER_PARTY_IDS.map((id) => {
+    let c = CHARACTERS[id];
+    let name = id === "主角" ? (gameState.playerName || "你") : c.name;
+    let assigned = gameState.foodAssignment[id];
+    let slotHtml;
+    if (assigned) {
+      let foodDef = Object.values(FOODS).find((f) => f.dishId === assigned.dishId);
+      let desc = foodDef ? foodBuffDescForDisplay(foodDef.buff.type, assigned.rare ? foodDef.buff.rareValue : foodDef.buff.value) : "";
+      slotHtml = `<div class="relic-slot-card equipped" title="${assigned.dishId}${assigned.rare ? "（稀有）" : ""}，效果：${desc}（點擊拆下回背包）" onclick="unassignDepartFood('${id}')">
+        <span class="relic-slot-icon">${assigned.rare ? "✨" : "🍲"}</span>
+        <span class="relic-slot-name">${assigned.dishId}${assigned.rare ? "（稀有）" : ""}</span>
+      </div>`;
+    } else {
+      slotHtml = `<div class="relic-slot-card empty${sel ? " placeable" : ""}" title="${sel ? "點擊分配選中的料理" : "空槽"}" onclick="assignDepartFood('${id}')">空</div>`;
+    }
+    return `<div class="food-assign-col">
+      <div class="food-assign-name">${c.icon} ${name}</div>
+      ${slotHtml}
+    </div>`;
+  }).join("");
+
+  showScreen(`
+    <h2 class="screen-title">整備出發</h2>
+    <p class="dim">出發前小隊會恢復到滿血滿狀態，技能次數也會全部回滿。</p>
+    <div class="card">
+      <strong>🧪 藥水</strong>
+      <span class="dim">目前 ${gameState.potions} / ${POTION_MAX} 瓶，每瓶 💎${POTION_REFILL_COST}</span>
+      <div style="margin-top:8px;">
+        <button class="action-btn" title="花費 💎${POTION_REFILL_COST} 補充1瓶" ${gameState.potions >= POTION_MAX || gameState.crystal < POTION_REFILL_COST ? "disabled" : ""} onclick="buyPotion(1, showDepartScreen)">+1 瓶</button>
+        <button class="action-btn" title="花光潛晶把藥水補到上限" ${gameState.potions >= POTION_MAX ? "disabled" : ""} onclick="buyPotion(POTION_MAX, showDepartScreen)">一鍵補滿</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>料理背包</h3>
+      <p class="dim">先點一份料理選中，再點角色的空槽分配過去；點已分配的料理可以拆下回背包。</p>
+      <div class="food-pick-row">${backpackHtml}</div>
+    </div>
+    <div class="card"><h3>隊員攜帶</h3><div class="food-assign-row">${rows}</div></div>
+    <button class="action-btn" onclick="confirmDepart()">🚪 出發，深潛第一圈層</button>
+    <button class="action-btn secondary" onclick="showHomeScreen()">返回</button>
+  `, { withTopbar: true });
+}
+
+function selectDepartFood(dishId, rare) {
+  if (departAvailableCount(dishId, rare) <= 0) return;
+  let sel = window._departSelectedFood;
+  window._departSelectedFood = (sel && sel.dishId === dishId && sel.rare === rare) ? null : { dishId, rare };
+  showDepartScreen();
+}
+
+function assignDepartFood(charId) {
+  let sel = window._departSelectedFood;
+  if (!sel) return;
+  gameState.foodAssignment[charId] = { dishId: sel.dishId, rare: sel.rare };
+  window._departSelectedFood = null;
+  showDepartScreen();
+}
+
+function unassignDepartFood(charId) {
+  gameState.foodAssignment[charId] = null;
+  showDepartScreen();
+}
+
+function confirmDepart() {
+  let choice = gameState.foodAssignment || {};
+
+  // 扣掉這次帶走的料理庫存（沒吃掉的話回避難所會還回來、分配也會繼續保留），一般/稀有各自扣自己的
+  let foodChoice = {};
+  SHELTER_PARTY_IDS.forEach((id) => {
+    let f = choice[id];
+    if (!f) { foodChoice[id] = null; return; }
+    let e = gameState.cookedInventory[f.dishId];
+    let have = e ? (f.rare ? e.rare : e.normal) : 0;
+    if (have <= 0) { gameState.foodAssignment[id] = null; foodChoice[id] = null; return; }
+    if (f.rare) e.rare--; else e.normal--;
+    foodChoice[id] = { dishId: f.dishId, rare: f.rare };
+  });
+
+  window._departSelectedFood = null;
+  startNewDive(foodChoice);
+}
+
+// ---- 煉藥站（待設計） ----
+
+function showAlchemyScreen() {
+  showScreen(`
+    <h2 class="screen-title">煉藥站</h2>
+    <div class="card">
+      <p>L 靠在角落，還在恢復。「……煉藥的事，再給我一點時間。」</p>
+      <p class="dim">功能待設計，敬請期待。</p>
+    </div>
+    <button class="action-btn secondary" onclick="showShelterScreen()">返回避難所</button>
+  `, { withTopbar: true });
+}
+
+// ---- 回避難所結算（由 05_深潛.js 在出征結束時呼叫；此時 activeDive 還沒清空） ----
+// 潛晶是即時累加到 gameState.crystal 的（深潛中HUD要能即時顯示、代價交換節點也要能即時花），
+// 全滅只是事後「把這趟賺到的部分扣掉一半」，不是延遲到回避難所才入帳。
+
+function applyShelterReturn(resultType) {
+  let earned = (activeDive && activeDive.crystalEarnedThisRun) || 0;
+  if (resultType === "wipe") {
+    let loss = Math.floor(earned * (1 - WIPE_CRYSTAL_KEEP_PERCENT));
+    gameState.crystal = Math.max(0, gameState.crystal - loss);
+    gameState.stats.wipes++;
+  }
+
+  // 沒吃掉的攜帶料理還回背包
+  let party = (activeDive && activeDive.party) || {};
+  Object.keys(party).forEach((id) => {
+    let food = party[id].carriedFood;
+    if (!food) return;
+    if (!gameState.cookedInventory[food.dishId]) gameState.cookedInventory[food.dishId] = { normal: 0, rare: 0 };
+    if (food.rare) gameState.cookedInventory[food.dishId].rare++;
+    else gameState.cookedInventory[food.dishId].normal++;
+  });
+
+  // 維護費
+  if (gameState.crystal >= SHELTER_MAINTENANCE_FEE) {
+    gameState.crystal -= SHELTER_MAINTENANCE_FEE;
+    gameState.workshopSuspended = false;
+  } else {
+    gameState.crystal = 0;
+    gameState.workshopSuspended = true;
+  }
+
+  activeDive = null;
+
+  let msg = resultType === "boss" ? "🏴‍☠️ 擊敗 Boss，滿載而歸。"
+    : resultType === "wipe" ? "❄️ 全隊倒下，被冰涼的東西捲走了一半收穫，你們爬回了避難所。"
+    : "🚪 主動撤退，安全帶回了收穫。";
+  systemToast(msg, resultType === "wipe");
+  if (gameState.workshopSuspended) systemToast("⚠️ 維護費不夠，工坊暫時停擺。", true);
+
+  showShelterScreen();
+}
