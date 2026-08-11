@@ -298,6 +298,8 @@ function foodBuffDescForDisplay(buffType, value) {
     case "damage-percent": return `下場戰鬥造成傷害 +${pct}%`;
     case "dodge-percent": return `下場戰鬥閃避率 +${pct}%`;
     case "damage-reduction-percent": return `下場戰鬥受到傷害 -${pct}%`;
+    case "crit-percent": return `下場戰鬥爆擊率 +${pct}%`;
+    case "first-turn-dmg-percent": return `下場戰鬥首回合造成傷害 +${pct}%`;
     default: return "";
   }
 }

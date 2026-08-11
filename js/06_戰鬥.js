@@ -416,6 +416,10 @@ function damageCalc(dmgRange, opts) {
   if (opts.attackerIsElite) dmg = Math.ceil(dmg * ELITE_DMG_MULT);
   if (activeDive.nextBattleDmgDebuff && opts.attackerSide === "ally") dmg = Math.ceil(dmg * (1 + activeDive.nextBattleDmgDebuff));
   if (activeDive.nextBattleDmgBonus && opts.attackerSide === "ally") dmg = Math.ceil(dmg * (1 + activeDive.nextBattleDmgBonus));
+  // 第二層料理「鹽烤鼠肉串」：首回合造成傷害提升（只在該場戰鬥第一回合生效）
+  if (opts.attacker && opts.attacker.foodBuffActive && opts.attacker.foodBuffActive.type === "first-turn-dmg-percent" && opts.attackerSide === "ally" && activeBattle.turnCount === 1) {
+    dmg = Math.ceil(dmg * (1 + opts.attacker.foodBuffActive.value));
+  }
   if (opts.attackerSide === "ally" && activeBattle.turnCount >= 3 && opts.targetSide === "enemy" && activeDive.globalBuffs.includes("脆弱迴響")) {
     dmg = Math.ceil(dmg * 1.15);
   }
@@ -494,7 +498,8 @@ function getAllyDamageTakenReduction(m) {
 function dealDamageToEnemy(casterId, enemy, dmgRange, opts) {
   opts = opts || {};
   let m = activeDive.party[casterId];
-  let critBonus = (m.relics.includes("裂瞳珠") ? 0.05 : 0) + (m.critBuffNextBattle || 0) + (m.multiBattleCritRemaining > 0 ? m.multiBattleCritBonus : 0);
+  let critBonus = (m.relics.includes("裂瞳珠") ? 0.05 : 0) + (m.critBuffNextBattle || 0) + (m.multiBattleCritRemaining > 0 ? m.multiBattleCritBonus : 0)
+    + (m.foodBuffActive && m.foodBuffActive.type === "crit-percent" ? m.foodBuffActive.value : 0); // 第二層料理「炙烤兔腿」：爆擊率
   let dmgPercent = 0;
   if (opts.isNormalAttack && m.relics.includes("尖銳碎片")) dmgPercent += 0.15;
   if (opts.isSkill && m.relics.includes("銳石")) dmgPercent += 0.15;

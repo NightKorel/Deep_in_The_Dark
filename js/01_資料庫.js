@@ -267,7 +267,7 @@ const MONSTERS = {
     skillIds: ["垂垂耳_踢擊", "垂垂耳_連踢", "垂垂耳_猛撞"],
     codex: "毛茸茸的，耳朵軟軟垂著。我差點伸手去摸。然後牠踢裂了地上那塊石頭。我沒摸！",
     idleLine: "垂垂耳的後腿微微下壓，肌肉繃得很緊。",
-    foodId: null,
+    foodId: "垂垂耳腿肉",
   },
   尖嘴鼠: {
     id: "尖嘴鼠", name: "尖嘴鼠", icon: "🐹",
@@ -275,7 +275,7 @@ const MONSTERS = {
     skillIds: ["尖嘴鼠_爪擊", "尖嘴鼠_地震", "尖嘴鼠_掘地"],
     codex: "走路搖搖晃晃的，看起來真的很呆，到底怎麼那麼會鑽啊？？？",
     idleLine: "尖嘴鼠的爪子刨動著地面，碎石不斷滾落。",
-    foodId: null,
+    foodId: "尖嘴鼠肉",
   },
 };
 
@@ -534,6 +534,21 @@ const FOODS = {
     dishId: "脆脆藻湯", dishName: "脆脆藻湯",
     flavorText: "有股天然的鹽味，很爽口呢。",
     buff: { type: "damage-reduction-percent", value: 0.10, rareValue: 0.20 },
+  },
+
+  // ===== 第二層食材（垂垂耳／尖嘴鼠掉落，K 在「家」煮成料理）=====
+  // 刻意用第一層沒有的 buff 類型：爆擊率、首回合傷害。
+  垂垂耳腿肉: {
+    id: "垂垂耳腿肉", name: "垂垂耳腿肉", rareName: "稀有垂垂耳腿肉",
+    dishId: "炙烤兔腿", dishName: "炙烤兔腿",
+    flavorText: "看起來人畜無害，肉質倒是意外緊實彈牙。K 煮完還嘀咕了句「明明那麼會踢」。",
+    buff: { type: "crit-percent", value: 0.10, rareValue: 0.20 },
+  },
+  尖嘴鼠肉: {
+    id: "尖嘴鼠肉", name: "尖嘴鼠肉", rareName: "稀有尖嘴鼠肉",
+    dishId: "鹽烤鼠肉串", dishName: "鹽烤鼠肉串",
+    flavorText: "串起來炭烤，油脂滋滋作響。吃一口，開場那一下特別有勁。",
+    buff: { type: "first-turn-dmg-percent", value: 0.15, rareValue: 0.30 },
   },
 };
 const FOOD_DROP_RATE_NORMAL = 0.50;
