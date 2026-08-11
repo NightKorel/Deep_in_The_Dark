@@ -1,6 +1,6 @@
 // ========================================
 // 潛淵 - 深潛（探索）畫面
-// 節點圖選路、非戰鬥事件解析、深潛中的操作(藥水/料理/撤回)
+// 節點圖選路、非戰鬥事件解析、深潛中的操作(補血藥/料理/撤回)
 // 戰鬥本身交給 06_戰鬥.js 的 startBattle()，這裡只負責觸發戰鬥與處理戰鬥結果
 // ========================================
 
@@ -154,7 +154,7 @@ function renderDiveScreen() {
       { speaker: "", text: "V 點了一下頭。" },
       { speaker: "K", text: "有東西堵在前面。我不確定那是什麼——但 L 失蹤的那個坑，就在這附近。" },
       { speaker: "K", text: "如果 L 還在裡面，我們必須過去。" },
-      { speaker: "K", text: `${displayName("主角")}，準備好了就走吧。藥水記得留著。` },
+      { speaker: "K", text: `${displayName("主角")}，準備好了就走吧。補血藥記得留著。` },
     ], renderDiveScreen);
     return;
   }
@@ -187,7 +187,7 @@ function renderDiveScreen() {
     ${forkHintHtml}
     <div class="node-path">${optionsHtml}</div>
     <div class="dive-actions">
-      <button class="action-btn" onclick="usePotionAction()">🧪 使用藥水</button>
+      <button class="action-btn" onclick="usePotionAction()">🧪 使用補血藥</button>
       <button class="action-btn" onclick="eatFoodAction()">🍲 食用料理</button>
       <button class="action-btn" onclick="showRelicManagementScreen()">🔸 遺物管理</button>
       <button class="action-btn danger" onclick="retreatAction()">🚪 撤回避難所</button>
@@ -847,7 +847,7 @@ function applyDiveEffect(effect, onDone) {
     case "find-potion": {
       let v = randInt(effect.range[0], effect.range[1]);
       gameState.potions = clamp(gameState.potions + v, 0, POTION_MAX);
-      systemToast(`🧪 找到了 ${v} 瓶藥水。`);
+      systemToast(`🧪 找到了 ${v} 瓶補血藥。`);
       break;
     }
     case "random-member-crit-buff": {
@@ -925,7 +925,7 @@ function applyDiveEffect(effect, onDone) {
         activeDive.nextBattleDmgBonus += effect.value;
         systemToast(`獻上 🧪${effect.potionCost}，全隊進入「激昂」狀態，下場戰鬥傷害提升。`);
       } else {
-        systemToast("藥水不夠，無法交換。", true);
+        systemToast("補血藥不夠，無法交換。", true);
       }
       break;
     case "pay-crystal-for-relic-choice": {
@@ -968,13 +968,13 @@ function applyDiveEffect(effect, onDone) {
 // ---------- 深潛中的非戰鬥操作 ----------
 
 function usePotionAction() {
-  if (gameState.potions <= 0) { systemToast("藥水用完了。", true); return; }
-  pickPartyMemberFlow("誰要喝藥水？", (memberId) => {
+  if (gameState.potions <= 0) { systemToast("補血藥用完了。", true); return; }
+  pickPartyMemberFlow("誰要喝補血藥？", (memberId) => {
     let m = activeDive.party[memberId];
     gameState.potions--;
     let healPercent = activeDive.globalBuffs.includes("藥效強化") ? 0.45 : POTION_HEAL_PERCENT;
     m.hp = Math.min(m.maxHp, m.hp + Math.ceil(m.maxHp * healPercent));
-    systemToast(`🧪 ${displayName(memberId)} 喝下藥水，回復了血量。`);
+    systemToast(`🧪 ${displayName(memberId)} 喝下補血藥，回復了血量。`);
     renderDiveScreen();
   }, true);
 }

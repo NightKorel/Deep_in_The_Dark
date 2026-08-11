@@ -8,7 +8,7 @@
 const SHELTER_MAINTENANCE_FEE = 3; // 每次回避難所扣的維護費
 const POTION_MAX = 12;
 const POTION_REFILL_COST = 1; // 潛晶/瓶
-const POTION_HEAL_PERCENT = 0.30; // 藥水回復比例（藥效強化增益可提升到0.45）
+const POTION_HEAL_PERCENT = 0.30; // 補血藥回復比例（藥效強化增益可提升到0.45）
 
 // 升級費用：Lv1=10，之後每級 x1.5 無條件進位
 const UPGRADE_COST_BY_LEVEL = [0, 10, 15, 23, 35, 53];
@@ -423,14 +423,14 @@ const ODDITY_EVENTS = [
 
 // ---------- 代價交換 ♻️（隨機出現兩個選項） ----------
 // 補丁v1修改8：從4種擴充到7種後又移除「潛晶換情報」，目前6種，每次仍隨機出2個
-const COST_EXCHANGE_FOCUS_DMG_BONUS = 0.15; // 「藥水換激昂」的下場戰鬥傷害加成
+const COST_EXCHANGE_FOCUS_DMG_BONUS = 0.15; // 「補血藥換激昂」的下場戰鬥傷害加成
 const COST_EXCHANGE_CRIT_BONUS = 0.15; // 「犧牲換爆擊率」的加成
 const COST_EXCHANGE_CRIT_BATTLES = 2; // 「犧牲換爆擊率」持續場數
 const COST_EXCHANGE_OPTIONS = [
   { id: "犧牲換遺物", label: "犧牲一名角色10%當前血量 → 獲得隨機遺物", effect: { type: "sacrifice-hp-for-relic", value: 0.10 } },
   { id: "潛晶換回血", label: "支付5潛晶 → 全隊回復30%血量", effect: { type: "pay-crystal-for-heal", cost: 5, healPercent: 0.30 } },
   { id: "料理換潛晶", label: "交出一份攜帶中的料理 → 獲得5~8潛晶", effect: { type: "trade-food-for-crystal", range: [5, 8] } },
-  { id: "藥水換激昂", label: `獻上2瓶藥水 → 全隊獲得「激昂」，下場戰鬥傷害+${Math.round(COST_EXCHANGE_FOCUS_DMG_BONUS * 100)}%`, effect: { type: "trade-potions-for-dmg-buff", potionCost: 2, value: COST_EXCHANGE_FOCUS_DMG_BONUS } },
+  { id: "補血藥換激昂", label: `獻上2瓶補血藥 → 全隊獲得「激昂」，下場戰鬥傷害+${Math.round(COST_EXCHANGE_FOCUS_DMG_BONUS * 100)}%`, effect: { type: "trade-potions-for-dmg-buff", potionCost: 2, value: COST_EXCHANGE_FOCUS_DMG_BONUS } },
   { id: "潛晶換選遺物", label: "支付8潛晶 → 從3個遺物中選1個", effect: { type: "pay-crystal-for-relic-choice", cost: 8 } },
   { id: "犧牲換爆擊率", label: `獻出一名角色20%當前血量 → 該角色下${COST_EXCHANGE_CRIT_BATTLES}場戰鬥爆擊率+${Math.round(COST_EXCHANGE_CRIT_BONUS * 100)}%`, effect: { type: "sacrifice-hp-for-multi-battle-crit", value: 0.20, critBonus: COST_EXCHANGE_CRIT_BONUS, battles: COST_EXCHANGE_CRIT_BATTLES } },
 ];
@@ -475,7 +475,7 @@ const RANDOM_EVENTS = [
 
   // ---- 無選擇 (4) ----
   { id: "小型儲藏", name: "發現小型儲藏", desc: "角落裡有一個被遺棄的小包。裡面還剩一些潛晶。", effect: { type: "find-crystal", range: [2, 4] } },
-  { id: "漂流者的遺物", name: "漂流者的遺物", desc: "牆邊靠著一個空了的背包。裡面還有幾瓶沒打開的藥水。", effect: { type: "find-potion", range: [1, 2] } },
+  { id: "漂流者的遺物", name: "漂流者的遺物", desc: "牆邊靠著一個空了的背包。裡面還有幾瓶沒打開的補血藥。", effect: { type: "find-potion", range: [1, 2] } },
   { id: "寧靜角落", name: "寧靜角落", desc: "這片區域異常安靜。腳步聲都變得柔和了。在這裡待了一會之後，呼吸順暢了一些。", effect: { type: "heal-all-percent", value: 0.10 } },
   { id: "地面塌陷", name: "地面塌陷", desc: "腳下一鬆——地面塌了一小塊。碎石刮傷了大家。不過裂縫裡有東西在發光。", effect: { type: "compound", effects: [{ type: "damage-all-flat", value: 2 }, { type: "grant-relic" }] } },
 
@@ -562,7 +562,7 @@ const GLOBAL_BUFFS = [
   { id: "迴聲護盾", name: "迴聲護盾", desc: "每場戰鬥第一回合全隊減傷30%", effect: { type: "first-turn-dmg-reduction", value: 0.30 } },
   { id: "潛流加速", name: "潛流加速", desc: "第一回合全隊閃避率 +30%", effect: { type: "first-turn-dodge", value: 0.30 } },
   { id: "採集本能", name: "採集本能", desc: "潛晶掉落量 +50%", effect: { type: "crystal-drop-percent", value: 0.50 } },
-  { id: "藥效強化", name: "藥效強化", desc: "藥水回復量從30%提升到45%", effect: { type: "potion-heal-override", value: 0.45 } },
+  { id: "藥效強化", name: "藥效強化", desc: "補血藥回復量從30%提升到45%", effect: { type: "potion-heal-override", value: 0.45 } },
   { id: "強韌體質", name: "強韌體質", desc: "全隊最大血量 +15%", effect: { type: "maxhp-percent-all", value: 0.15 } },
   { id: "脆弱迴響", name: "脆弱迴響", desc: "第三回合起所有敵人受到傷害 +15%", effect: { type: "enemy-dmg-taken-from-turn3", value: 0.15 } },
   { id: "險境奮起", name: "險境奮起", desc: "有人倒地時其餘角色傷害 +20%", effect: { type: "dmg-boost-when-ally-fallen", value: 0.20 } },

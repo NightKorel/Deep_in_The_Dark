@@ -180,15 +180,15 @@ function continueOpeningAfterNaming() {
     { speaker: "K", text: "構造簡單、強度普通的東西只要幾顆潛晶。但要讓它更硬、更鋒利，消耗會直線上升——而且一部分潛晶得拿去維修避難所，所以我們手上一直存不了太多。" },
     { speaker: "K", text: "之前有幾次不夠，工坊那邊就暫時動不了，不過避難所本身不會塌就是了。前期會緊一點，之後應該會越來越寬裕。" },
     { speaker: "K", text: "對了——你也餓了吧？食材是打怪的時候會撿到的，每種食材都能對應做出一道菜，偶爾會撿到高級版，效果會加倍。平常有塊莖類的食物，靠一點潛晶造肥料跟種子種出來的，管飽但……不太好吃。吃到好料理的話，身體會更有力氣。" },
-    { speaker: "K", text: "因為 L 不在，沒辦法煉藥，我的『想像』也不夠強，只能用潛晶造最基本的治療藥水。先拿去用吧。" },
-    { speaker: "K", text: "這些治療藥水給你，戰鬥內外都能喝，不過戰鬥中喝會耽誤出手時機。藥水快用完的時候，拿潛晶來，我可以用「想像」幫你多做幾瓶。" },
+    { speaker: "K", text: "因為 L 不在，沒辦法煉藥，我的『想像』也不夠強，只能用潛晶造最基本的補血藥。先拿去用吧。" },
+    { speaker: "K", text: "這些補血藥給你，戰鬥內外都能喝，不過戰鬥中喝會耽誤出手時機。補血藥快用完的時候，拿潛晶來，我可以用「想像」幫你多做幾瓶。" },
     { speaker: "K", text: "好了，該讓你自己看看四周了。" },
   ], finishOpeningStory);
 }
 
 function finishOpeningStory() {
   gameState.storyFlags.introDone = true;
-  gameState.potions = 3; // 開場K給的起始藥水數量，回避難所後可以再花潛晶補到上限
+  gameState.potions = 3; // 開場K給的起始補血藥數量，回避難所後可以再花潛晶補到上限
   showShelterScreen();
   systemToast(`歡迎來到潛淵，${gameState.playerName}。`);
 }

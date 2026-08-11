@@ -714,8 +714,8 @@ function battleDrinkPotion(casterId) {
   gameState.potions--;
   let m = activeDive.party[casterId];
   let healPercent = activeDive.globalBuffs.includes("藥效強化") ? 0.45 : POTION_HEAL_PERCENT;
-  applyAllyHeal(m, Math.ceil(m.maxHp * healPercent)); // 中毒時藥水回復同樣減半
-  logBattle(`🧪 ${displayName(casterId)} 喝下藥水回復血量。`);
+  applyAllyHeal(m, Math.ceil(m.maxHp * healPercent)); // 中毒時補血藥回復同樣減半
+  logBattle(`🧪 ${displayName(casterId)} 喝下補血藥回復血量。`);
   flashUnit(casterId, "heal");
   finishAllyAction();
 }
@@ -1035,7 +1035,7 @@ function renderActionPanel(casterId) {
       <button class="battle-btn" title="對單一敵人造成普通攻擊傷害" onclick="battleNormalAttack('${casterId}')">攻擊</button>
       ${skillButtons}
       <button class="battle-btn" title="回復最大血量的${Math.round(potionHealPercent * 100)}%" ${gameState.potions <= 0 ? "disabled" : ""} onclick="battleDrinkPotion('${casterId}')">
-        藥水<span class="btn-sub">剩 ${gameState.potions} 瓶</span>
+        補血藥<span class="btn-sub">剩 ${gameState.potions} 瓶</span>
       </button>
       <button class="battle-btn" title="嘗試逃離戰鬥，成功率${Math.round(FLEE_SUCCESS_RATE * 100)}%，失敗會讓敵方立刻多行動一輪" ${(!activeBattle.allowFlee || aliveCount < 2) ? "disabled" : ""} onclick="battleFlee('${casterId}')">逃跑</button>
     </div>
