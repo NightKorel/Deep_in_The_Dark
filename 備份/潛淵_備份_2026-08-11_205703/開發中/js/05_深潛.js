@@ -47,6 +47,7 @@ function startNewDive(foodChoice) {
       fallen: false,
       skillUses: uses,
       bleedStacks: 0, bleedDuration: 0,
+      poisonDuration: 0,
       hotHealPerTurn: 0, hotDuration: 0,
       guardActive: false,
       chargeReady: false,

@@ -224,8 +224,50 @@ function openCheatModal() {
     ${skipTutorialRow}
     ${completeLayer1Row}
     ${maxLevelRow}
+    <button class="action-btn" style="margin-top:8px;" onclick="cheatTestLayer2Battle()">測試第二層小怪戰鬥</button>
     <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">關閉</button>
   `);
+}
+
+// 測試用：直接跟第二層四隻小怪開一場戰鬥，方便試玩新怪／中毒手感。
+// 建一個臨時的深潛狀態（只為了能開戰、不影響存檔進度），打完直接回避難所，戰鬥不發獎勵。
+function cheatTestLayer2Battle() {
+  closeGenericModal();
+  dialogueQueue = [];
+  dialogueOnComplete = null;
+  document.getElementById("dialogue-overlay").classList.add("hidden");
+
+  let party = {};
+  SHELTER_PARTY_IDS.forEach((id) => {
+    let maxHp = getCharacterMaxHp(id);
+    let uses = {};
+    gameState.equippedSkills[id].forEach((skillId) => { if (isSkillUnlocked(id, skillId)) uses[skillId] = SKILLS[skillId].maxUses; });
+    party[id] = {
+      hp: maxHp, maxHp, fallen: false, skillUses: uses,
+      bleedStacks: 0, bleedDuration: 0, poisonDuration: 0,
+      hotHealPerTurn: 0, hotDuration: 0,
+      guardActive: false, chargeReady: false, stunnedNextTurn: false, shield: 0,
+      dmgBuffNextAttack: 0, chargeMultiplier: 1, dodgeBuffThisTurn: 0,
+      damageReduction: 0, damageReductionDuration: 0,
+      relics: [], carriedFood: null,
+      critBuffNextBattle: 0, multiBattleCritBonus: 0, multiBattleCritRemaining: 0, foodBuffActive: null,
+    };
+  });
+  activeDive = {
+    layer: 2, nodeIndex: 0, restUsed: false, crystalEarnedThisRun: 0,
+    globalBuffs: [], nextBattleDmgDebuff: 0, nextBattleDmgBonus: 0,
+    shopOffer: null, relicBackpack: [], relicManagementSelected: null, party,
+  };
+  startBattle(LAYER2_MONSTER_POOL.slice(), {
+    allowFlee: true, rewardMult: 1, suppressRewards: true,
+    onResult: (result) => {
+      activeDive = null;
+      showShelterScreen();
+      if (result.outcome === "win") systemToast("測試戰鬥：勝利。（測試模式不發獎勵）");
+      else if (result.outcome === "wipe") systemToast("測試戰鬥：全隊倒下。", true);
+      else systemToast("測試戰鬥結束。");
+    },
+  });
 }
 
 // 每個角色各自升到「自己技能池的最高等級」(目前四人都是4級，但用skillIds.length算，以後技能數不一致也不用改這裡)
