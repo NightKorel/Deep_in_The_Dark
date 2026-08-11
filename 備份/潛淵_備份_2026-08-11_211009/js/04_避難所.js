@@ -25,6 +25,7 @@ function shelterRosterHtml() {
 
 function showShelterScreen() {
   activeDive = null;
+  checkAchievements(); // 回避難所時統一檢查一次成就（等級/強化/潛晶/圖鑑/救出L等被動條件）
   let lockedAlchemy = !gameState.storyFlags.lRescued;
   showScreen(`
     <h2 class="screen-title">避難所</h2>
@@ -198,6 +199,8 @@ function cookFood(foodId, rare) {
   else gameState.cookedInventory[food.dishId].normal++;
 
   systemToast(`🍲 做好了：${food.dishName}${rare ? "（稀有版）" : ""}`);
+  gameState.stats.dishesCooked++;
+  checkAchievements();
   showCookingScreen();
 }
 
@@ -482,6 +485,7 @@ function applyShelterReturn(resultType) {
   if (resultType === "wipe") {
     let loss = Math.floor(earned * (1 - WIPE_CRYSTAL_KEEP_PERCENT));
     gameState.crystal = Math.max(0, gameState.crystal - loss);
+    gameState.stats.wipes++;
   }
 
   // 沒吃掉的攜帶料理還回背包

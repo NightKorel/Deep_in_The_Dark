@@ -478,6 +478,29 @@ const RANDOM_EVENTS = [
   { id: "漂流者的遺物", name: "漂流者的遺物", desc: "牆邊靠著一個空了的背包。裡面還有幾瓶沒打開的藥水。", effect: { type: "find-potion", range: [1, 2] } },
   { id: "寧靜角落", name: "寧靜角落", desc: "這片區域異常安靜。腳步聲都變得柔和了。在這裡待了一會之後，呼吸順暢了一些。", effect: { type: "heal-all-percent", value: 0.10 } },
   { id: "地面塌陷", name: "地面塌陷", desc: "腳下一鬆——地面塌了一小塊。碎石刮傷了大家。不過裂縫裡有東西在發光。", effect: { type: "compound", effects: [{ type: "damage-all-flat", value: 2 }, { type: "grant-relic" }] } },
+
+  // ---- 新增事件（有選擇）----
+  { id: "迴音壁", name: "迴音壁", desc: "一面凹陷的岩壁把你的呼吸聲放大回傳。要不要對它喊點什麼？", options: [
+    { label: "放聲大喊", outcomes: [
+      { chance: 0.55, text: "層層回音在洞裡盪開，某種共鳴讓你精神為之一振。", effect: { type: "random-member-crit-buff", value: 0.10 } },
+      { chance: 0.45, text: "回音招來了躲在暗處的東西……", effect: { type: "forced-battle", group: ["凝膠", "眼藻"], suppressRewards: true } },
+    ] },
+    { label: "安靜走開", effect: { type: "noop" } },
+  ] },
+  { id: "廢棄的營地", name: "廢棄的營地", desc: "一處匆忙棄置的營地，灰燼裡還有一點餘溫。主人似乎走得很急。", options: [
+    { label: "快速拿了就走", text: "你抓了幾樣看得見的東西就離開。", effect: { type: "find-crystal", range: [2, 3] } },
+    { label: "仔細搜刮一遍", outcomes: [
+      { chance: 0.6, text: "翻遍每個角落，收穫不錯。", effect: { type: "compound", effects: [{ type: "find-crystal", range: [4, 7] }, { type: "find-potion", range: [1, 1] }] } },
+      { chance: 0.4, text: "你翻倒了一疊東西，某個尖銳的物件劃傷了大家。", effect: { type: "damage-all-flat", value: 3 } },
+    ] },
+  ] },
+  { id: "潛淵鏡面", name: "潛淵鏡面", desc: "一池靜止如鏡的水。水裡倒映出的你，表情卻和你不太一樣。", options: [
+    { label: "凝視倒影", outcomes: [
+      { chance: 0.5, text: "你在倒影深處看見了某種領悟。", effect: { type: "random-buff" } },
+      { chance: 0.5, text: "倒影忽然咧嘴一笑——你猛地回神，背後全是冷汗。", effect: { type: "damage-all-flat", value: 2 } },
+    ] },
+    { label: "攪散水面", text: "你伸手攪碎了倒影，水面回復平靜。什麼也沒發生……大概吧。", effect: { type: "noop" } },
+  ] },
 ];
 
 // ---------- 寶藏 🪎 ----------

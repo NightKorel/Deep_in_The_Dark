@@ -42,6 +42,11 @@ let gameState = {
   settings: {
     autoTargetSingleEnemy: true, // 敵方只剩1隻時，普攻/單體技能自動選定目標、不用手動點
   },
+  achievements: {}, // 成就解鎖狀態 { 初次潛淵: true, ... }
+  stats: { // 成就用的輔助統計（不是玩家直接看的數值）
+    divesStarted: 0, mimicKills: 0, flawlessWins: 0, wipes: 0,
+    dishesCooked: 0, relicsEquipped: 0, maxCrystalSeen: 0,
+  },
 };
 
 // 深潛中的暫存狀態，中途放棄或關視窗不會被存下來
@@ -402,6 +407,8 @@ function collectSaveData() {
     equippedSkills: gameState.equippedSkills,
     foodAssignment: gameState.foodAssignment,
     settings: gameState.settings,
+    achievements: gameState.achievements,
+    stats: gameState.stats,
   };
 }
 
@@ -558,6 +565,22 @@ function applySaveData(data) {
   try {
     if (data.settings && typeof data.settings === "object") {
       if (typeof data.settings.autoTargetSingleEnemy === "boolean") gameState.settings.autoTargetSingleEnemy = data.settings.autoTargetSingleEnemy;
+    }
+  } catch (e) {}
+
+  try {
+    if (data.achievements && typeof data.achievements === "object") {
+      Object.keys(data.achievements).forEach((id) => {
+        if (data.achievements[id]) gameState.achievements[id] = true;
+      });
+    }
+  } catch (e) {}
+
+  try {
+    if (data.stats && typeof data.stats === "object") {
+      Object.keys(gameState.stats).forEach((key) => {
+        if (typeof data.stats[key] === "number") gameState.stats[key] = Math.max(0, data.stats[key]);
+      });
     }
   } catch (e) {}
 

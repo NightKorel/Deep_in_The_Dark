@@ -15,6 +15,7 @@ function getCharacterColor(charId) {
 function addRunCrystal(amount) {
   gameState.crystal += amount;
   if (activeDive) activeDive.crystalEarnedThisRun += amount;
+  gameState.stats.maxCrystalSeen = Math.max(gameState.stats.maxCrystalSeen, gameState.crystal); // 成就用：記錄潛晶峰值
 }
 
 function addExp(charId, amount) {
@@ -47,6 +48,7 @@ function startNewDive(foodChoice) {
       fallen: false,
       skillUses: uses,
       bleedStacks: 0, bleedDuration: 0,
+      poisonDuration: 0,
       hotHealPerTurn: 0, hotDuration: 0,
       guardActive: false,
       chargeReady: false,
@@ -80,6 +82,8 @@ function startNewDive(foodChoice) {
   };
 
   systemToast("整裝完畢，出發深潛。");
+  gameState.stats.divesStarted++;
+  checkAchievements();
 
   if (!gameState.storyFlags.firstDiveStarted) {
     gameState.storyFlags.firstDiveStarted = true;
@@ -668,6 +672,8 @@ function equipSelectedRelic(charId) {
   activeDive.relicBackpack.splice(idx, 1);
   m.relics.push(relicId);
   activeDive.relicManagementSelected = null;
+  gameState.stats.relicsEquipped++;
+  checkAchievements();
   showRelicManagementScreen();
 }
 

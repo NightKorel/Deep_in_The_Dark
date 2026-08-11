@@ -20,6 +20,7 @@ function startBattle(monsterIds, options) {
   SHELTER_PARTY_IDS.forEach((id) => {
     let m = activeDive.party[id];
     m.bleedStacks = 0; m.bleedDuration = 0;
+    m.poisonDuration = 0; // 中毒：戰鬥開始清空，避免跨戰鬥殘留
     m.hotHealPerTurn = 0; m.hotDuration = 0; // 順手修：這兩個原本沒在這裡重置，理論上會跨戰鬥殘留
     m.guardActive = false; m.chargeReady = false; m.stunnedNextTurn = false;
     m.shield = 0;
@@ -65,6 +66,7 @@ function buildEnemyInstance(monsterId, isElite, idx) {
     shield: 0,
     bleedStacks: 0, bleedDuration: 0,
     stunnedNextTurn: false,
+    burrowed: false, // 尖嘴鼠掘地：潛入地底時為 true，期間無法被選為目標、也不受全體技能波及
   };
 }
 
@@ -110,6 +112,14 @@ function buildAllyTurnQueue() {
   return queue;
 }
 
+// 對我方角色套用治療，並處理「中毒→治療減半」。回傳實際回復的血量（給log顯示用）。
+// 戰鬥中所有對我方的治療都要走這裡，中毒才能一致地把治療打對折。
+function applyAllyHeal(m, rawHeal) {
+  let heal = m.poisonDuration > 0 ? Math.ceil(rawHeal * POISON_HEAL_MULTIPLIER) : rawHeal;
+  m.hp = Math.min(m.maxHp, m.hp + heal);
+  return heal;
+}
+
 function tickStatusEffectsAll() {
   SHELTER_PARTY_IDS.forEach((id) => {
     let m = activeDive.party[id];
@@ -120,8 +130,8 @@ function tickStatusEffectsAll() {
       if (m.damageReductionDuration <= 0) m.damageReduction = 0;
     }
     if (m.hotDuration > 0) {
-      m.hp = Math.min(m.maxHp, m.hp + m.hotHealPerTurn);
-      logBattle(`💚 ${displayName(id)} 持續回血 +${m.hotHealPerTurn}。`);
+      let healed = applyAllyHeal(m, m.hotHealPerTurn);
+      logBattle(`💚 ${displayName(id)} 持續回血 +${healed}。`);
       m.hotDuration--;
       if (m.hotDuration <= 0) m.hotHealPerTurn = 0;
     }
@@ -211,6 +221,11 @@ function processNextEnemyTurn() {
 
 function endRound() {
   if (checkBattleEnd()) return;
+  // 中毒持續回合在每回合結束時遞減，讓「中毒當回合起算3個治療回合」都吃得到減半效果
+  SHELTER_PARTY_IDS.forEach((id) => {
+    let m = activeDive.party[id];
+    if (m.poisonDuration > 0) m.poisonDuration--;
+  });
   activeBattle.turnCount++;
   beginRound();
 }
@@ -233,6 +248,8 @@ function chooseEnemyIntent(enemy) {
   if (enemy.forcedNextSkillId) {
     let id = enemy.forcedNextSkillId;
     enemy.forcedNextSkillId = null;
+    // 掘地→破土：這一回合冒出地面，恢復成可被攻擊的目標（玩家有機會在牠出手前打斷）
+    if (MONSTER_SKILLS[id] && MONSTER_SKILLS[id].id === "尖嘴鼠_破土") enemy.burrowed = false;
     return id;
   }
   let monster = MONSTERS[enemy.monsterId];
@@ -264,6 +281,37 @@ function executeEnemySkill(enemy) {
     }
     logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，對 ${summarizeHits(results)}。`);
     if (skill.forcesNextBite) enemy.forcedNextSkillId = "藍顎獸_撕咬";
+    if (skill.lifesteal) {
+      let drained = results.reduce((sum, r) => sum + (r.miss ? 0 : r.dmg), 0);
+      if (drained > 0) {
+        enemy.hp = Math.min(enemy.maxHp, enemy.hp + drained);
+        logBattle(`${enemy.icon} ${enemy.name} 吸取了 ${drained} 點血量。`);
+      }
+    }
+  } else if (skill.type === "attack-random-allies") {
+    // 隨機挑 targetCount 名還沒倒下的我方，各別造成傷害；命中的可附加中毒
+    let alive = SHELTER_PARTY_IDS.filter((id) => !activeDive.party[id].fallen);
+    let count = Math.min(skill.targetCount || 1, alive.length);
+    let pool = alive.slice();
+    let picked = [];
+    for (let i = 0; i < count && pool.length > 0; i++) picked.push(pool.splice(randInt(0, pool.length - 1), 1)[0]);
+    let results = [];
+    let poisonedNames = [];
+    picked.forEach((id) => {
+      let r = Object.assign({ name: displayName(id) }, dealDamageToAlly(enemy, id, skill.dmgRange));
+      results.push(r);
+      let m = activeDive.party[id];
+      if (skill.applyPoison && !r.miss && !m.fallen) {
+        m.poisonDuration = POISON_DURATION; // 不可疊加，重複中毒只刷新持續時間
+        poisonedNames.push(displayName(id));
+      }
+    });
+    logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，對 ${summarizeHits(results)}${poisonedNames.length ? `，${poisonedNames.join("、")}中毒了` : ""}。`);
+  } else if (skill.type === "burrow") {
+    // 掘地：這回合潛入地底（無法被選為目標、不受全體技能波及），並預約下回合冒出重擊
+    enemy.burrowed = true;
+    enemy.forcedNextSkillId = skill.emergeSkillId;
+    logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，鑽進地底，暫時無法被攻擊。`);
   } else if (skill.type === "self-heal") {
     let heal = randInt(skill.healRange[0], skill.healRange[1]);
     enemy.hp = Math.min(enemy.maxHp, enemy.hp + heal);
@@ -491,7 +539,7 @@ function isCurrentActorsTurn(casterId) {
 // 敵方只剩1隻活著沒逃走的敵人、且設定裡開著自動選目標時，回傳那隻敵人；否則回傳null(需要玩家手動點選)
 function getAutoTargetEnemyIfSingle() {
   if (!gameState.settings.autoTargetSingleEnemy) return null;
-  let alive = activeBattle.enemies.filter((e) => e.hp > 0 && !e.escaped);
+  let alive = activeBattle.enemies.filter((e) => e.hp > 0 && !e.escaped && !e.burrowed);
   return alive.length === 1 ? alive[0] : null;
 }
 
@@ -534,7 +582,7 @@ function battleSelectTarget(targetId, isEnemy) {
   if (!pending) return;
   if (isEnemy) {
     let enemy = activeBattle.enemies.find((e) => e.uid === targetId);
-    if (!enemy || enemy.hp <= 0 || enemy.escaped) return;
+    if (!enemy || enemy.hp <= 0 || enemy.escaped || enemy.burrowed) return;
   } else {
     let m = activeDive.party[targetId];
     if (!m || m.fallen) return;
@@ -584,7 +632,7 @@ function resolveSkillNoTarget(casterId, skillId, targetId) {
     let results = [];
     let stunnedEnemyName = null;
     if (skill.targetType === "all-enemies") {
-      activeBattle.enemies.filter((e) => e.hp > 0).forEach((e) => {
+      activeBattle.enemies.filter((e) => e.hp > 0 && !e.burrowed).forEach((e) => {
         results.push(Object.assign({ name: e.name }, dealDamageToEnemy(casterId, e, range, { isSkill: true, missRate: skill.missRate, critRateOverride: skill.critRateOverride })));
       });
     } else {
@@ -611,8 +659,8 @@ function resolveSkillNoTarget(casterId, skillId, targetId) {
     let allyId = targetId || casterId;
     let target = activeDive.party[allyId];
     let healMult = getCharacterHealMultiplier(casterId);
-    let heal = randInt(Math.ceil(skill.healRange[0] * healMult), Math.ceil(skill.healRange[1] * healMult));
-    target.hp = Math.min(target.maxHp, target.hp + heal);
+    let raw = randInt(Math.ceil(skill.healRange[0] * healMult), Math.ceil(skill.healRange[1] * healMult));
+    let heal = applyAllyHeal(target, raw);
     logBattle(`💚 ${displayName(casterId)} 使用「${skill.name}」，治療 ${displayName(allyId)} 回復 ${heal} 點血量。`);
     flashUnit(casterId, "actor");
     flashUnit(allyId, "heal");
@@ -630,8 +678,7 @@ function resolveSkillNoTarget(casterId, skillId, targetId) {
     logBattle(`🛡️ ${displayName(casterId)} 使用「${skill.name}」，進入格擋姿態。`);
     flashUnit(casterId, "actor");
   } else if (skill.type === "self-heal-percent") {
-    let heal = Math.ceil(m.maxHp * skill.healPercent);
-    m.hp = Math.min(m.maxHp, m.hp + heal);
+    let heal = applyAllyHeal(m, Math.ceil(m.maxHp * skill.healPercent));
     logBattle(`💚 ${displayName(casterId)} 使用「${skill.name}」，回復了 ${heal} 點血量。`);
     flashUnit(casterId, "heal");
   } else if (skill.type === "party-dmg-buff") {
@@ -667,7 +714,7 @@ function battleDrinkPotion(casterId) {
   gameState.potions--;
   let m = activeDive.party[casterId];
   let healPercent = activeDive.globalBuffs.includes("藥效強化") ? 0.45 : POTION_HEAL_PERCENT;
-  m.hp = Math.min(m.maxHp, m.hp + Math.ceil(m.maxHp * healPercent));
+  applyAllyHeal(m, Math.ceil(m.maxHp * healPercent)); // 中毒時藥水回復同樣減半
   logBattle(`🧪 ${displayName(casterId)} 喝下藥水回復血量。`);
   flashUnit(casterId, "heal");
   finishAllyAction();
@@ -767,6 +814,9 @@ function handleBattleWin() {
 
   // 這場戰鬥中途倒地過的人，經驗值只拿一半——要在reviveFallenAllies()清掉fallen狀態之前先記下來
   let fallenIds = SHELTER_PARTY_IDS.filter((id) => activeDive.party[id].fallen);
+  if (fallenIds.length === 0) gameState.stats.flawlessWins++;
+  if (defeatedMonsterIds.includes("寶箱怪")) gameState.stats.mimicKills++;
+  checkAchievements();
   reviveFallenAllies();
 
   SHELTER_PARTY_IDS.forEach((id) => {
@@ -864,12 +914,17 @@ function renderBattleScreen(actingAllyId) {
 
   let enemyHtml = activeBattle.enemies.map((e) => {
     if (e.hp <= 0 || e.escaped) return "";
-    let targetable = pending && ((pending.kind === "normal") || (pending.kind === "skill" && SKILLS[pending.skillId].targetType === "single-enemy"));
+    let burrowed = !!e.burrowed;
+    let targetable = !burrowed && pending && ((pending.kind === "normal") || (pending.kind === "skill" && SKILLS[pending.skillId].targetType === "single-enemy"));
     let speciesKnown = activeBattle.knownSpeciesAtStart.includes(e.monsterId);
-    let intentIcon = speciesKnown && e.intentSkillId ? MONSTER_SKILLS[e.intentSkillId].intent : "❔";
-    let intentTitle = speciesKnown
-      ? ({ "⚔️": "意圖：攻擊", "☠️": "意圖：造成異常狀態", "🌀": "意圖：蓄力，這回合不會動", "❓": "意圖：其他" }[intentIcon] || "")
-      : "意圖：未知（第一次遇到這種生物，還摸不清牠的底細）";
+    // 意圖列：見過的怪顯示「emoji＋技能名」（基本攻擊一律顯示「攻擊」）；沒見過的仍藏成 ❔。不顯示技能效果詳情。
+    let intentHtml;
+    if (speciesKnown && e.intentSkillId) {
+      let sk = MONSTER_SKILLS[e.intentSkillId];
+      intentHtml = `${sk.intent} ${sk.isBasic ? "攻擊" : sk.name}`;
+    } else {
+      intentHtml = "❔";
+    }
     let statusHtml = "";
     if (e.bleedStacks > 0) {
       let dmgPerTick = e.bleedStacks * BLEED_DAMAGE_PER_STACK;
@@ -882,12 +937,12 @@ function renderBattleScreen(actingAllyId) {
     }
     let monsterDef = MONSTERS[e.monsterId];
     let enemyRankClass = monsterDef.isBoss ? " battle-unit-boss" : e.isElite ? " battle-unit-elite" : "";
-    return `<div class="battle-unit${enemyRankClass}${targetable ? " targetable" : ""}" data-unit-id="${e.uid}" ${targetable ? `onclick="battleSelectTarget('${e.uid}', true)"` : ""}>
+    return `<div class="battle-unit${enemyRankClass}${burrowed ? " battle-unit-burrowed" : ""}${targetable ? " targetable" : ""}" data-unit-id="${e.uid}" ${targetable ? `onclick="battleSelectTarget('${e.uid}', true)"` : ""}>
       <div class="battle-unit-avatar">${e.icon}</div>
-      <div class="battle-unit-name">${e.name}</div>
+      <div class="battle-unit-name">${e.name}${burrowed ? "（潛地中）" : ""}</div>
       <div class="bar-track"><div class="bar-fill enemy-hp-fill" style="width:${(e.hp / e.maxHp) * 100}%;"></div></div>
       <div class="battle-unit-hp-text">${e.hp}/${e.maxHp}</div>
-      <div class="battle-unit-intent" title="${intentTitle}">${intentIcon}</div>
+      <div class="battle-unit-intent">${intentHtml}</div>
       <div class="battle-unit-statuses">${statusHtml}</div>
     </div>`;
   }).join("");
@@ -901,6 +956,9 @@ function renderBattleScreen(actingAllyId) {
     if (m.bleedStacks > 0) {
       let dmgPerTick = m.bleedStacks * BLEED_DAMAGE_PER_STACK;
       statusHtml += statusIconHtml(`🩸x${m.bleedStacks}`, `流血：每回合受到${dmgPerTick}點傷害，剩${m.bleedDuration}回合`);
+    }
+    if (m.poisonDuration > 0) {
+      statusHtml += statusIconHtml(`🟣`, `中毒：受到的治療效果減半，剩${m.poisonDuration}回合`);
     }
     if (m.guardActive) {
       statusHtml += statusIconHtml("🛡️格擋", `格擋中：受到的傷害-${Math.round(GUARD_DAMAGE_REDUCTION * 100)}%，被攻擊命中一次後解除`);

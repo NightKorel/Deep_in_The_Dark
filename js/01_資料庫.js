@@ -182,6 +182,11 @@ const DAMAGE_VARIANCE = 0.15; // ±15%
 const CHARGE_BONUS = 0.20; // 蓄勢 +20%（蓄能核遺物可提升到30%）
 const FLEE_SUCCESS_RATE = 0.60;
 
+// 中毒（第二層新狀態）：持續3回合，期間受到的治療效果減半（不直接扣血）；
+// 不可疊加，重複中毒只刷新持續時間，不疊層。用來跟「流血」（直接扣血）做出區隔。
+const POISON_DURATION = 3;
+const POISON_HEAL_MULTIPLIER = 0.5;
+
 // ---------- 怪物 ----------
 // intents 對照 skillId -> "⚔️"/"☠️"/"❓"
 
@@ -236,23 +241,59 @@ const MONSTERS = {
     idleLine: "箱子安靜地待在原地，彷彿只是個普通的箱子。",
     foodId: null,
   },
+
+  // ===== 第二層：乾燥岩洞地帶 =====
+  // 區域基調：外表不起眼／看起來可愛，實際兇猛危險。血量為暫定值（對標玩家等級3），可再調。
+  // 掉落的食材/藥材尚未設計，foodId 先留 null。
+  刺螯: {
+    id: "刺螯", name: "刺螯", icon: "🦂",
+    hpRange: [10, 14],
+    skillIds: ["刺螯_夾擊", "刺螯_毒刺", "刺螯_鑽沙"],
+    codex: "比拳頭大一點，踩都能踩死。但被螫過一次之後，我喝什麼藥都像在喝白開水，連V煮的湯都沒味道了。（V：？）",
+    idleLine: "刺螯的尾刺微微顫動，發出乾澀的摩擦聲。",
+    foodId: null,
+  },
+  膜翼: {
+    id: "膜翼", name: "膜翼", icon: "🦇",
+    hpRange: [16, 22],
+    skillIds: ["膜翼_利爪", "膜翼_超聲波", "膜翼_吸血"],
+    codex: "掛在洞頂一坨一坨的，我本來以為是某種石筍。直到那坨東西張嘴尖叫，我腦子空白了大概三秒，夠牠咬我兩口了。",
+    idleLine: "膜翼倒掛在陰影中，發出細碎的高頻鳴叫。",
+    foodId: null,
+  },
+  垂垂耳: {
+    id: "垂垂耳", name: "垂垂耳", icon: "🐰",
+    hpRange: [20, 26],
+    skillIds: ["垂垂耳_踢擊", "垂垂耳_連踢", "垂垂耳_猛撞"],
+    codex: "毛茸茸的，耳朵軟軟垂著。我差點伸手去摸。然後牠踢裂了地上那塊石頭。我沒摸！",
+    idleLine: "垂垂耳的後腿微微下壓，肌肉繃得很緊。",
+    foodId: null,
+  },
+  尖嘴鼠: {
+    id: "尖嘴鼠", name: "尖嘴鼠", icon: "🐹",
+    hpRange: [16, 22],
+    skillIds: ["尖嘴鼠_爪擊", "尖嘴鼠_地震", "尖嘴鼠_掘地"],
+    codex: "走路搖搖晃晃的，看起來真的很呆，到底怎麼那麼會鑽啊？？？",
+    idleLine: "尖嘴鼠的爪子刨動著地面，碎石不斷滾落。",
+    foodId: null,
+  },
 };
 
 // 怪物技能：type同角色技能；cooldown為冷卻回合數(0=無冷卻，每回合都能用)；intent對應顯示圖示
 const MONSTER_SKILLS = {
-  凝膠_猛擊: { id: "凝膠_猛擊", name: "猛擊", type: "attack", targetType: "single-enemy", dmgRange: [1, 3], cooldown: 0, intent: "⚔️" },
+  凝膠_猛擊: { id: "凝膠_猛擊", name: "猛擊", type: "attack", targetType: "single-enemy", dmgRange: [1, 3], cooldown: 0, intent: "⚔️", isBasic: true },
   凝膠_彈跳: { id: "凝膠_彈跳", name: "彈跳", type: "self-heal", healRange: [2, 4], cooldown: 2, intent: "❓" },
   凝膠_壓縮: { id: "凝膠_壓縮", name: "壓縮", type: "self-shield", shieldAmount: 3, cooldown: 2, intent: "❓" },
 
-  藍顎獸_撕咬: { id: "藍顎獸_撕咬", name: "撕咬", type: "attack", targetType: "single-enemy", dmgRange: [4, 6], cooldown: 0, intent: "⚔️" },
+  藍顎獸_撕咬: { id: "藍顎獸_撕咬", name: "撕咬", type: "attack", targetType: "single-enemy", dmgRange: [4, 6], cooldown: 0, intent: "⚔️", isBasic: true },
   藍顎獸_蓄力: { id: "藍顎獸_蓄力", name: "蓄力", type: "charge-up", cooldown: 0, intent: "🌀" },
   藍顎獸_重擊: { id: "藍顎獸_重擊", name: "重擊", type: "attack", targetType: "single-enemy", dmgRange: [10, 14], cooldown: 0, intent: "⚔️", forcesNextBite: true },
 
-  翅鱗_斬擊: { id: "翅鱗_斬擊", name: "斬擊", type: "attack", targetType: "single-enemy", dmgRange: [1, 3], hits: 2, cooldown: 0, intent: "⚔️" },
+  翅鱗_斬擊: { id: "翅鱗_斬擊", name: "斬擊", type: "attack", targetType: "single-enemy", dmgRange: [1, 3], hits: 2, cooldown: 0, intent: "⚔️", isBasic: true },
   翅鱗_俯衝: { id: "翅鱗_俯衝", name: "俯衝", type: "self-buff-dodge", dodgeChance: 0.50, cooldown: 2, intent: "❓" },
   翅鱗_水花: { id: "翅鱗_水花", name: "水花", type: "attack", targetType: "all-enemies", dmgRange: [1, 3], cooldown: 2, intent: "⚔️" },
 
-  眼藻_鞭擊: { id: "眼藻_鞭擊", name: "鞭擊", type: "attack", targetType: "single-enemy", dmgRange: [2, 4], cooldown: 0, intent: "⚔️" },
+  眼藻_鞭擊: { id: "眼藻_鞭擊", name: "鞭擊", type: "attack", targetType: "single-enemy", dmgRange: [2, 4], cooldown: 0, intent: "⚔️", isBasic: true },
   眼藻_纏繞: { id: "眼藻_纏繞", name: "纏繞", type: "apply-bleed-all", bleedStacks: 1, cooldown: 2, intent: "☠️" },
   眼藻_凝視: { id: "眼藻_凝視", name: "凝視", type: "attack", targetType: "single-enemy", dmgRange: [4, 6], cooldown: 1, intent: "⚔️" },
 
@@ -261,7 +302,26 @@ const MONSTER_SKILLS = {
   島鯨_反芻: { id: "島鯨_反芻", name: "反芻", type: "summon", summonPool: "layer1", cooldown: 3, intent: "❓" },
   島鯨_聲納: { id: "島鯨_聲納", name: "聲納", type: "stun-chance-all", stunChance: 0.30, cooldown: 3, intent: "☠️" },
 
-  寶箱怪_攻擊: { id: "寶箱怪_攻擊", name: "攻擊", type: "attack", targetType: "single-enemy", dmgRange: [1, 3], cooldown: 0, intent: "⚔️" },
+  寶箱怪_攻擊: { id: "寶箱怪_攻擊", name: "攻擊", type: "attack", targetType: "single-enemy", dmgRange: [1, 3], cooldown: 0, intent: "⚔️", isBasic: true },
+
+  // ===== 第二層小怪技能 =====
+  // isBasic 的技能在意圖列一律顯示「攻擊」；其餘顯示技能本名。
+  刺螯_夾擊: { id: "刺螯_夾擊", name: "夾擊", type: "attack", targetType: "single-enemy", dmgRange: [1, 3], cooldown: 0, intent: "⚔️", isBasic: true },
+  刺螯_毒刺: { id: "刺螯_毒刺", name: "毒刺", type: "attack-random-allies", targetCount: 2, dmgRange: [2, 4], applyPoison: true, cooldown: 3, intent: "☠️" },
+  刺螯_鑽沙: { id: "刺螯_鑽沙", name: "鑽沙", type: "self-buff-dodge", dodgeChance: 0.50, cooldown: 2, intent: "❓" },
+
+  膜翼_利爪: { id: "膜翼_利爪", name: "利爪", type: "attack", targetType: "single-enemy", dmgRange: [2, 4], cooldown: 0, intent: "⚔️", isBasic: true },
+  膜翼_超聲波: { id: "膜翼_超聲波", name: "超聲波", type: "stun-chance-all", stunChance: 0.30, cooldown: 3, intent: "☠️" },
+  膜翼_吸血: { id: "膜翼_吸血", name: "吸血", type: "attack", targetType: "single-enemy", dmgRange: [3, 5], lifesteal: true, cooldown: 2, intent: "⚔️" },
+
+  垂垂耳_踢擊: { id: "垂垂耳_踢擊", name: "踢擊", type: "attack", targetType: "single-enemy", dmgRange: [4, 6], cooldown: 0, intent: "⚔️", isBasic: true },
+  垂垂耳_連踢: { id: "垂垂耳_連踢", name: "連踢", type: "attack", targetType: "single-enemy", dmgRange: [2, 4], hits: 2, cooldown: 1, intent: "⚔️" },
+  垂垂耳_猛撞: { id: "垂垂耳_猛撞", name: "猛撞", type: "attack", targetType: "single-enemy", dmgRange: [8, 12], cooldown: 2, intent: "⚔️" },
+
+  尖嘴鼠_爪擊: { id: "尖嘴鼠_爪擊", name: "爪擊", type: "attack", targetType: "single-enemy", dmgRange: [3, 5], cooldown: 0, intent: "⚔️", isBasic: true },
+  尖嘴鼠_地震: { id: "尖嘴鼠_地震", name: "地震", type: "attack", targetType: "all-enemies", dmgRange: [3, 5], cooldown: 2, intent: "⚔️" },
+  尖嘴鼠_掘地: { id: "尖嘴鼠_掘地", name: "掘地", type: "burrow", emergeSkillId: "尖嘴鼠_破土", cooldown: 3, intent: "🌀" },
+  尖嘴鼠_破土: { id: "尖嘴鼠_破土", name: "破土", type: "attack", targetType: "single-enemy", dmgRange: [6, 9], cooldown: 0, intent: "⚔️" },
 };
 
 const ELITE_HP_MULT = 1.5; // 無條件進位
@@ -272,6 +332,7 @@ const MAX_ENEMIES_ON_FIELD = 4;
 // 一般小怪節點不用固定組合表，改成每次隨機決定2或3隻、從四種小怪不重複抽選（見05_深潛.js的generateRandomMonsterGroup）。
 // 菁英節點是特別設計的固定配方，不走隨機。
 const LAYER1_MONSTER_POOL = ["凝膠", "藍顎獸", "翅鱗", "眼藻"];
+const LAYER2_MONSTER_POOL = ["刺螯", "膜翼", "垂垂耳", "尖嘴鼠"];
 const ENEMY_GROUPS_LAYER1 = {
   菁英: [["藍顎獸", "眼藻"]],
 };
@@ -417,6 +478,29 @@ const RANDOM_EVENTS = [
   { id: "漂流者的遺物", name: "漂流者的遺物", desc: "牆邊靠著一個空了的背包。裡面還有幾瓶沒打開的藥水。", effect: { type: "find-potion", range: [1, 2] } },
   { id: "寧靜角落", name: "寧靜角落", desc: "這片區域異常安靜。腳步聲都變得柔和了。在這裡待了一會之後，呼吸順暢了一些。", effect: { type: "heal-all-percent", value: 0.10 } },
   { id: "地面塌陷", name: "地面塌陷", desc: "腳下一鬆——地面塌了一小塊。碎石刮傷了大家。不過裂縫裡有東西在發光。", effect: { type: "compound", effects: [{ type: "damage-all-flat", value: 2 }, { type: "grant-relic" }] } },
+
+  // ---- 新增事件（有選擇）----
+  { id: "迴音壁", name: "迴音壁", desc: "一面凹陷的岩壁把你的呼吸聲放大回傳。要不要對它喊點什麼？", options: [
+    { label: "放聲大喊", outcomes: [
+      { chance: 0.55, text: "層層回音在洞裡盪開，某種共鳴讓你精神為之一振。", effect: { type: "random-member-crit-buff", value: 0.10 } },
+      { chance: 0.45, text: "回音招來了躲在暗處的東西……", effect: { type: "forced-battle", group: ["凝膠", "眼藻"], suppressRewards: true } },
+    ] },
+    { label: "安靜走開", effect: { type: "noop" } },
+  ] },
+  { id: "廢棄的營地", name: "廢棄的營地", desc: "一處匆忙棄置的營地，灰燼裡還有一點餘溫。主人似乎走得很急。", options: [
+    { label: "快速拿了就走", text: "你抓了幾樣看得見的東西就離開。", effect: { type: "find-crystal", range: [2, 3] } },
+    { label: "仔細搜刮一遍", outcomes: [
+      { chance: 0.6, text: "翻遍每個角落，收穫不錯。", effect: { type: "compound", effects: [{ type: "find-crystal", range: [4, 7] }, { type: "find-potion", range: [1, 1] }] } },
+      { chance: 0.4, text: "你翻倒了一疊東西，某個尖銳的物件劃傷了大家。", effect: { type: "damage-all-flat", value: 3 } },
+    ] },
+  ] },
+  { id: "潛淵鏡面", name: "潛淵鏡面", desc: "一池靜止如鏡的水。水裡倒映出的你，表情卻和你不太一樣。", options: [
+    { label: "凝視倒影", outcomes: [
+      { chance: 0.5, text: "你在倒影深處看見了某種領悟。", effect: { type: "random-buff" } },
+      { chance: 0.5, text: "倒影忽然咧嘴一笑——你猛地回神，背後全是冷汗。", effect: { type: "damage-all-flat", value: 2 } },
+    ] },
+    { label: "攪散水面", text: "你伸手攪碎了倒影，水面回復平靜。什麼也沒發生……大概吧。", effect: { type: "noop" } },
+  ] },
 ];
 
 // ---------- 寶藏 🪎 ----------

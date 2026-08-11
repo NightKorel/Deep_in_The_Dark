@@ -814,6 +814,9 @@ function handleBattleWin() {
 
   // 這場戰鬥中途倒地過的人，經驗值只拿一半——要在reviveFallenAllies()清掉fallen狀態之前先記下來
   let fallenIds = SHELTER_PARTY_IDS.filter((id) => activeDive.party[id].fallen);
+  if (fallenIds.length === 0) gameState.stats.flawlessWins++;
+  if (defeatedMonsterIds.includes("寶箱怪")) gameState.stats.mimicKills++;
+  checkAchievements();
   reviveFallenAllies();
 
   SHELTER_PARTY_IDS.forEach((id) => {
