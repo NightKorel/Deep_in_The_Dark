@@ -20,6 +20,10 @@ const ACHIEVEMENTS = [
   { id: "精益求精", name: "精益求精", icon: "⚔️", desc: "把任一武器強化到 3 級。", check: () => Object.values(gameState.characters).some((c) => c.weaponLv >= 3) },
   { id: "岩洞的盡頭", name: "岩洞的盡頭", icon: "🐍", desc: "擊敗巨岩蚺，打通第二圈層。", check: () => !!gameState.storyFlags.layer2Cleared },
   { id: "岩洞圖鑑", name: "岩洞圖鑑", icon: "🦂", desc: "見過第二層所有生物。", check: () => ["刺螯", "膜翼", "垂垂耳", "尖嘴鼠", "巨岩蚺"].every((m) => gameState.bestiary[m]) },
+  { id: "魔藥師", name: "魔藥師", icon: "🧫", desc: "製作出第一瓶魔藥。", check: () => Object.keys(gameState.discoveredPotions || {}).length >= 1 },
+  { id: "美食家", name: "美食家", icon: "🍱", desc: "做過 4 種以上不同的料理。", check: () => Object.keys(gameState.discoveredDishes || {}).length >= 4 },
+  { id: "深潛老手", name: "深潛老手", icon: "🗺️", desc: "累計出發深潛 10 次。", check: () => (gameState.stats.divesStarted || 0) >= 10 },
+  { id: "遺物達人", name: "遺物達人", icon: "🔱", desc: "累計裝備過 5 個遺物。", check: () => (gameState.stats.relicsEquipped || 0) >= 5 },
 ];
 
 // 統一檢查：更新潛晶峰值，然後把所有「已達成但還沒解鎖」的成就解鎖並跳通知。

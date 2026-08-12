@@ -14,7 +14,7 @@ function startOpeningStory() {
     { speaker: "？？？", text: "抱歉……我們沒有選擇。" },
     { speaker: "", text: "你感覺自己正在傾斜，接著是無盡的下墜。" },
     { speaker: "", text: "不知過了多久，你在幽暗潮濕的裂谷中獨自醒來，四周是陌生的岩壁與微光。" },
-  ], showTutorialFork);
+  ], showTutorialFork, { id: "序章", title: "序章・墜入潛淵", order: 0 });
 }
 
 function showTutorialFork() {
@@ -164,7 +164,7 @@ function continueOpeningAfterFight() {
       buttonLabel: "就這麼定了",
       onSubmit: (name) => { gameState.playerName = name; CHARACTERS.主角.name = name; },
     } },
-  ], continueOpeningAfterNaming);
+  ], continueOpeningAfterNaming, { id: "序章", title: "序章・墜入潛淵", order: 0, append: true });
 }
 
 function continueOpeningAfterNaming() {
@@ -183,7 +183,7 @@ function continueOpeningAfterNaming() {
     { speaker: "K", text: "因為 L 不在，沒辦法製藥，我的『想像』也不夠強，只能用潛晶造最基本的補血藥。先拿去用吧。" },
     { speaker: "K", text: "這些補血藥給你，戰鬥內外都能喝，不過戰鬥中喝會耽誤出手時機。補血藥快用完的時候，拿潛晶來，我可以用「想像」幫你多做幾瓶。" },
     { speaker: "K", text: "好了，該讓你自己看看四周了。" },
-  ], finishOpeningStory);
+  ], finishOpeningStory, { id: "序章", title: "序章・墜入潛淵", order: 0, append: true });
 }
 
 function finishOpeningStory() {

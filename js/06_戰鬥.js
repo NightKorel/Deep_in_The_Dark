@@ -141,6 +141,7 @@ function tickStatusEffectsAll() {
     if (m.hotDuration > 0) {
       let healed = applyAllyHeal(m, m.hotHealPerTurn);
       logBattle(`💚 ${displayName(id)} 持續回血 +${healed}。`);
+      spawnFloatingNumber(id, "+" + healed, "heal");
       m.hotDuration--;
       if (m.hotDuration <= 0) m.hotHealPerTurn = 0;
     }
@@ -300,6 +301,7 @@ function executeEnemySkill(enemy) {
       if (drained > 0) {
         let healed = applyEnemyHeal(enemy, drained); // 中毒時吸血減半
         logBattle(`${enemy.icon} ${enemy.name} 吸取了 ${healed} 點血量${enemy.poisonDuration > 0 ? "（中毒，減半）" : ""}。`);
+        spawnFloatingNumber(enemy.uid, "+" + healed, "heal");
       }
     }
   } else if (skill.type === "attack-random-allies") {
@@ -530,10 +532,12 @@ function dealDamageToAlly(enemy, allyId, dmgRange) {
   let m = activeDive.party[allyId];
   if (m.foodBuffActive && m.foodBuffActive.type === "dodge-percent" && chance(m.foodBuffActive.value)) {
     flashUnit(allyId, "target");
+    spawnFloatingNumber(allyId, "閃避", "miss");
     return { dmg: 0, miss: true, crit: false };
   }
   if (m.dodgeBuffThisTurn && chance(m.dodgeBuffThisTurn)) {
     flashUnit(allyId, "target");
+    spawnFloatingNumber(allyId, "閃避", "miss");
     return { dmg: 0, miss: true, crit: false };
   }
   let result = damageCalc(dmgRange, {
@@ -545,6 +549,7 @@ function dealDamageToAlly(enemy, allyId, dmgRange) {
   });
   if (result.miss) {
     flashUnit(allyId, "target");
+    floatDamageResult(allyId, result);
     return result;
   }
   let wasGuarding = m.guardActive;
@@ -556,6 +561,7 @@ function dealDamageToAlly(enemy, allyId, dmgRange) {
   }
   m.hp = Math.max(0, m.hp - dmg);
   flashUnit(allyId, "target");
+  spawnFloatingNumber(allyId, dmg > 0 ? "-" + dmg : "擋下", dmg > 0 ? (result.crit ? "crit" : "dmg") : "miss");
   if (wasGuarding) m.guardActive = false; // 被單體攻擊命中後格擋消失
   if (m.hp <= 0) fallAlly(allyId);
   return result;
@@ -592,6 +598,7 @@ function dealDamageToEnemy(casterId, enemy, dmgRange, opts) {
 
   if (result.miss) {
     flashUnit(enemy.uid, "target");
+    floatDamageResult(enemy.uid, result);
     return result;
   }
   let dmg = result.dmg;
@@ -602,6 +609,7 @@ function dealDamageToEnemy(casterId, enemy, dmgRange, opts) {
   }
   enemy.hp = Math.max(0, enemy.hp - dmg);
   flashUnit(enemy.uid, "target");
+  spawnFloatingNumber(enemy.uid, dmg > 0 ? "-" + dmg : "擋下", dmg > 0 ? (result.crit ? "crit" : "dmg") : "miss");
   return Object.assign({}, result, { dmg });
 }
 
@@ -744,6 +752,7 @@ function resolveSkillNoTarget(casterId, skillId, targetId) {
     logBattle(`💚 ${displayName(casterId)} 使用「${skill.name}」，治療 ${displayName(allyId)} 回復 ${heal} 點血量。`);
     flashUnit(casterId, "actor");
     flashUnit(allyId, "heal");
+    spawnFloatingNumber(allyId, "+" + heal, "heal");
   } else if (skill.type === "hot") {
     let allyId = targetId || casterId;
     let target = activeDive.party[allyId];
@@ -761,6 +770,7 @@ function resolveSkillNoTarget(casterId, skillId, targetId) {
     let heal = applyAllyHeal(m, Math.ceil(m.maxHp * skill.healPercent));
     logBattle(`💚 ${displayName(casterId)} 使用「${skill.name}」，回復了 ${heal} 點血量。`);
     flashUnit(casterId, "heal");
+    spawnFloatingNumber(casterId, "+" + heal, "heal");
   } else if (skill.type === "party-dmg-buff") {
     SHELTER_PARTY_IDS.forEach((id) => {
       let ally = activeDive.party[id];
@@ -794,9 +804,10 @@ function battleDrinkPotion(casterId) {
   gameState.potions--;
   let m = activeDive.party[casterId];
   let healPercent = activeDive.globalBuffs.includes("藥效強化") ? 0.45 : POTION_HEAL_PERCENT;
-  applyAllyHeal(m, Math.ceil(m.maxHp * healPercent)); // 中毒時補血藥回復同樣減半
+  let healedByPotion = applyAllyHeal(m, Math.ceil(m.maxHp * healPercent)); // 中毒時補血藥回復同樣減半
   logBattle(`🧪 ${displayName(casterId)} 喝下補血藥回復血量。`);
   flashUnit(casterId, "heal");
+  spawnFloatingNumber(casterId, "+" + healedByPotion, "heal");
   finishAllyAction();
 }
 
@@ -1037,6 +1048,32 @@ function flashUnit(unitId, kind) {
     if (kind === "target") el.classList.add("unit-shake");
     setTimeout(() => { el.classList.remove(flashClass, "unit-shake"); }, 320);
   }, 0);
+}
+
+// 傷害/治療的飄字：在單位頭上冒出數字並快速上飄消失（CSS .floating-number 已定義動畫）。
+// 跟 flashUnit 一樣用 setTimeout(0) 延到本輪 render 完成後才抓節點，抓到的才是重繪後的新節點。
+// kind: "dmg"(紅) / "crit"(金、較大) / "heal"(綠) / "miss"(灰)
+function spawnFloatingNumber(unitId, text, kind) {
+  if (!unitId) return;
+  setTimeout(() => {
+    let el = document.querySelector(`#battle-root [data-unit-id="${unitId}"]`);
+    if (!el) return;
+    let node = document.createElement("div");
+    node.className = "floating-number " + (kind || "dmg");
+    node.textContent = text;
+    node.style.left = (50 + (Math.random() * 28 - 14)) + "%"; // 隨機水平微偏移，多段命中不完全重疊
+    el.appendChild(node);
+    setTimeout(() => node.remove(), 750); // 動畫 0.7s 播完就移除，避免殘留
+  }, 0);
+}
+
+// 依傷害結果冒出對應飄字（命中冒傷害、爆擊金色放大、MISS/閃避冒灰字）
+function floatDamageResult(unitId, result) {
+  if (result.miss) {
+    spawnFloatingNumber(unitId, result.dodge ? "閃避" : "MISS", "miss");
+  } else {
+    spawnFloatingNumber(unitId, "-" + result.dmg, result.crit ? "crit" : "dmg");
+  }
 }
 
 function renderBattleScreen(actingAllyId) {

@@ -209,7 +209,7 @@ function renderDiveScreen() {
       { speaker: "K", text: "有東西堵在前面。我不確定那是什麼——但 L 失蹤的那個坑，就在這附近。" },
       { speaker: "K", text: "如果 L 還在裡面，我們必須過去。" },
       { speaker: "K", text: `${displayName("主角")}，準備好了就走吧。補血藥記得留著。` },
-    ], renderDiveScreen);
+    ], renderDiveScreen, { id: "第一層Boss門前", title: "第一圈層・Boss 門前", order: 10 });
     return;
   }
   // 第二層 Boss 門前（巨岩蚺）第一次抵達
@@ -223,7 +223,7 @@ function renderDiveScreen() {
       { speaker: "K", text: "藥材就在牠守著的地方？" },
       { speaker: "L", text: "多半是。想拿，就得先過牠這一關。" },
       { speaker: "K", text: `${displayName("主角")}，整頓好就上吧。這傢伙……不好惹。` },
-    ], renderDiveScreen);
+    ], renderDiveScreen, { id: "第二層Boss門前", title: "第二圈層・Boss 門前", order: 30 });
     return;
   }
 
@@ -376,7 +376,7 @@ function handleLayer1BossVictory() {
     { speaker: "", text: "水面下傳出微弱的動靜——是被吞下去的 L，暈乎乎的，但還活著。" },
     { speaker: "K", text: "……找到了。終於找到了。" },
     // ---- 回到避難所後：L 恢復、道謝，K 的真心話 ----
-    { speaker: "", text: "（回到避難所。L 靠著棚子的牆坐了很久，K 替他重新包紮了肩上的傷，又硬塞了半壺水過去。）" },
+    { speaker: "", text: "回到避難所。L 靠著棚子的牆坐了很久，K 替他重新包紮了肩上的傷，又硬塞了半壺水過去。" },
     { speaker: "", text: "過了好一會，L 的臉色終於回了點血色。" },
     { speaker: "K", text: "……感覺怎麼樣？還撐得住嗎？" },
     { speaker: "L", text: "死不了。" },
@@ -400,7 +400,7 @@ function handleLayer1BossVictory() {
     { speaker: "V", text: "……嗯。" },
     { speaker: "K", text: "L 一直說，一定有辦法出去的。回到潛淵之上，去過我們該有的、平凡但珍貴的日子。" },
     { speaker: "K", text: "所以啊——就再陪他任性一次吧。走，回家，還有一堆事等著呢。" },
-  ], () => applyShelterReturn("boss"));
+  ], () => applyShelterReturn("boss"), { id: "救出L", title: "第一圈層・救出 L", order: 20 });
 }
 
 function handleLayer2BossVictory() {
@@ -420,7 +420,7 @@ function handleLayer2BossVictory() {
     { speaker: "K", text: "第二層……我們過了。" },
     { speaker: "L", text: "別高興太早。往下，只會更難走。" },
     { speaker: "L", text: "……但至少，路是通的。" },
-  ], () => applyShelterReturn("boss"));
+  ], () => applyShelterReturn("boss"), { id: "第二層結局", title: "第二圈層・巨岩蚺之後", order: 40 });
 }
 
 // 作弊共用：清掉殘留的對話框覆蓋層、確保過了新手教學、把第一層路上只播一次的教學/劇情標記成看過

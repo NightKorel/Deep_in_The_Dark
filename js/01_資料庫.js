@@ -521,11 +521,11 @@ const RANDOM_EVENTS = [
     { label: "不碰", effect: { type: "noop" } },
   ] },
   { id: "潛晶賭注", name: "潛晶賭注", desc: "地面上有一圈用潛晶粉末畫成的奇怪圖案。中間放著一顆潛晶，好像在等待什麼。", options: [
-    { label: "放入3顆潛晶", requiresCrystal: 3, upfrontCost: { crystal: 3 }, outcomes: [
-      { chance: 0.5, text: "圖案亮了一瞬。你放入的潛晶和原本那顆一起彈了出來。", effect: { type: "find-crystal", range: [4, 4] } },
-      { chance: 0.5, text: "圖案暗了下去。你的潛晶和原本那顆都消失了。", effect: { type: "noop" } },
+    { label: "放入3顆潛晶（賭一把）", requiresCrystal: 3, upfrontCost: { crystal: 3 }, outcomes: [
+      { chance: 0.5, text: "圖案猛地亮起，中央湧出一小堆潛晶，連你放入的那些一起彈了出來！", effect: { type: "find-crystal", range: [8, 12] } },
+      { chance: 0.5, text: "圖案暗了下去。你放入的潛晶連同原本那顆，一起消失了。", effect: { type: "noop" } },
     ] },
-    { label: "拿走中間那顆", text: "你伸手拿起了那顆潛晶。什麼也沒發生。", effect: { type: "find-crystal", range: [1, 1] } },
+    { label: "拿走中間那顆", text: "你伸手拿起了那顆潛晶。什麼也沒發生。", effect: { type: "find-crystal", range: [1, 2] } },
     { label: "離開", effect: { type: "noop" } },
   ] },
   { id: "寶箱怪事件", name: "寶箱怪", desc: "前方有個箱子。看起來裝著不少好東西——等等，它在動。", isMimic: true },

@@ -49,6 +49,7 @@ let gameState = {
   foodAssignment: { 主角: null, K: null, V: null, L: null }, // 每個角色目前分配到的攜帶料理({dishId,rare}或null)，沒吃掉的話下次出征會繼續帶著，不用重新分配
   potionAssignment: { 主角: null, K: null, V: null, L: null }, // 每個角色攜帶的魔藥({potionId,rare}或null)，跟料理各自獨立一格；沒用掉下次出征繼續帶
   lastDepartLayer: 1, // 出發畫面上次選的圈層，下次進來預設帶出這個（下拉選單記住選擇用）
+  storyLog: {}, // 劇情回顧：{ 場景id: {title, order, lines:[{speaker,text}]} }，玩到哪記到哪（防暴雷：沒看過的不會出現）
   settings: {
     autoTargetSingleEnemy: true, // 敵方只剩1隻時，普攻/單體技能自動選定目標、不用手動點
   },
@@ -248,66 +249,9 @@ function openCheatModal() {
     ${completeLayer1Row}
     ${completeLayer2Row}
     ${maxLevelRow}
-    <button class="action-btn" style="margin-top:8px;" onclick="cheatTestLayer2Battle()">測試第二層小怪戰鬥</button>
-    <button class="action-btn" style="margin-top:8px;" onclick="cheatTestGambleNode()">測試賭場節點（賭潛晶）</button>
     ${unlockCasinoRow}
     <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">關閉</button>
   `);
-}
-
-// 測試用：直接跟第二層四隻小怪開一場戰鬥，方便試玩新怪／中毒手感。
-// 建一個臨時的深潛狀態（只為了能開戰、不影響存檔進度），打完直接回避難所，戰鬥不發獎勵。
-function cheatTestLayer2Battle() {
-  closeGenericModal();
-  dialogueQueue = [];
-  dialogueOnComplete = null;
-  document.getElementById("dialogue-overlay").classList.add("hidden");
-
-  let party = {};
-  SHELTER_PARTY_IDS.forEach((id) => {
-    let maxHp = getCharacterMaxHp(id);
-    let uses = {};
-    gameState.equippedSkills[id].forEach((skillId) => { if (isSkillUnlocked(id, skillId)) uses[skillId] = SKILLS[skillId].maxUses; });
-    party[id] = {
-      hp: maxHp, maxHp, fallen: false, skillUses: uses,
-      bleedStacks: 0, bleedDuration: 0, poisonDuration: 0,
-      hotHealPerTurn: 0, hotDuration: 0,
-      guardActive: false, chargeReady: false, stunTurns: 0, shield: 0,
-      dmgBuffNextAttack: 0, chargeMultiplier: 1, dodgeBuffThisTurn: 0,
-      damageReduction: 0, damageReductionDuration: 0,
-      relics: [], carriedFood: null,
-      carriedPotion: { potionId: "腐蝕彈", rare: false }, // 測試戰鬥給一瓶魔藥，方便試玩「魔藥格」
-      critBuffNextBattle: 0, multiBattleCritBonus: 0, multiBattleCritRemaining: 0, foodBuffActive: null,
-    };
-  });
-  activeDive = {
-    layer: 2, nodeIndex: 0, restUsed: false, crystalEarnedThisRun: 0,
-    globalBuffs: [], nextBattleDmgDebuff: 0, nextBattleDmgBonus: 0,
-    shopOffer: null, relicBackpack: [], relicManagementSelected: null, party,
-  };
-  startBattle(LAYER2_MONSTER_POOL.slice(), {
-    allowFlee: true, rewardMult: 1, suppressRewards: true,
-    onResult: (result) => {
-      activeDive = null;
-      showShelterScreen();
-      if (result.outcome === "win") systemToast("測試戰鬥：勝利。（測試模式不發獎勵）");
-      else if (result.outcome === "wipe") systemToast("測試戰鬥：全隊倒下。", true);
-      else systemToast("測試戰鬥結束。");
-    },
-  });
-}
-
-// 測試用：直接進節點賭場（賭潛晶），不用真的走到第二層的🎲節點。打完回避難所。
-function cheatTestGambleNode() {
-  closeGenericModal();
-  dialogueQueue = [];
-  dialogueOnComplete = null;
-  document.getElementById("dialogue-overlay").classList.add("hidden");
-  activeDive = null;
-  if (gameState.crystal < 20) gameState.crystal += 50; // 給點本金方便試玩
-  let firstTime = !gameState.storyFlags.metH;
-  gameState.storyFlags.metH = true;
-  casinoEnter({ currency: "crystal", title: firstTime ? "黑暗中的邀約" : "H 的賭局", onExit: showShelterScreen, intro: firstTime });
 }
 
 // 測試用：直接解鎖避難所賭場（滿足 metH + layer2Cleared 兩條件），並給一點代幣本金。
@@ -351,11 +295,32 @@ function systemToast(msg, important) {
 let dialogueQueue = [];
 let dialogueOnComplete = null;
 
-function playDialogue(lines, onComplete) {
+// logInfo（選填）：{ id, title, order, append } — 有給的話，把這段對話收進「劇情回顧」（見09_劇情記錄.js）。
+// 只有主線大段落才傳 logInfo，一般節點事件對話不記錄。
+function playDialogue(lines, onComplete, logInfo) {
+  if (logInfo && logInfo.id) recordStoryLog(logInfo, lines);
   dialogueQueue = lines.slice();
   dialogueOnComplete = onComplete || null;
   document.getElementById("dialogue-overlay").classList.remove("hidden");
   showNextDialogueLine();
+}
+
+// 把一段對話的「有台詞的行」收進劇情回顧（旁白 speaker 為空字串，照樣記，回顧時當旁白顯示）。
+// append=true 時接在同一場景後面（用於跨多次 playDialogue 的開場劇情）。
+function recordStoryLog(info, lines) {
+  if (!gameState.storyLog) gameState.storyLog = {};
+  let textLines = (lines || [])
+    .filter((l) => l && typeof l.text === "string" && l.text.trim().length > 0)
+    .map((l) => ({ speaker: l.speaker || "", text: l.text }));
+  if (textLines.length === 0) return;
+  let existing = gameState.storyLog[info.id];
+  if (existing && info.append) {
+    existing.lines = existing.lines.concat(textLines);
+    if (info.title) existing.title = info.title;
+    if (info.order != null) existing.order = info.order;
+  } else {
+    gameState.storyLog[info.id] = { title: info.title || info.id, order: info.order || 0, lines: textLines };
+  }
 }
 
 function showNextDialogueLine() {
@@ -459,6 +424,7 @@ function collectSaveData() {
     foodAssignment: gameState.foodAssignment,
     potionAssignment: gameState.potionAssignment,
     lastDepartLayer: gameState.lastDepartLayer,
+    storyLog: gameState.storyLog,
     settings: gameState.settings,
     achievements: gameState.achievements,
     stats: gameState.stats,
@@ -672,6 +638,22 @@ function applySaveData(data) {
   try {
     if (typeof data.lastDepartLayer === "number" && data.lastDepartLayer >= 1) {
       gameState.lastDepartLayer = Math.round(data.lastDepartLayer);
+    }
+  } catch (e) {}
+
+  try {
+    if (data.storyLog && typeof data.storyLog === "object") {
+      gameState.storyLog = {};
+      Object.keys(data.storyLog).forEach((id) => {
+        let s = data.storyLog[id];
+        if (s && Array.isArray(s.lines)) {
+          gameState.storyLog[id] = {
+            title: typeof s.title === "string" ? s.title : id,
+            order: typeof s.order === "number" ? s.order : 0,
+            lines: s.lines.filter((l) => l && typeof l.text === "string").map((l) => ({ speaker: l.speaker || "", text: l.text })),
+          };
+        }
+      });
     }
   } catch (e) {}
 

@@ -111,6 +111,12 @@ body {
 .depart-layer-select:focus { outline: none; border-color: #4fa8d8; box-shadow: 0 0 8px rgba(79, 168, 216, 0.3); }
 .depart-layer-select option { background: #1a1d24; color: #e6edf3; }
 
+/* 劇情回顧 */
+.storylog-scroll { max-height: 55vh; overflow-y: auto; padding-right: 8px; }
+.storylog-narration { color: #8b949e; font-style: italic; margin: 10px 0; line-height: 1.7; }
+.storylog-line { margin: 10px 0; color: #d4dbe3; line-height: 1.7; }
+.storylog-speaker { color: #4fa8d8; }
+
 /* 主畫面容器 */
 #main-screen {
   min-height: 100vh;
