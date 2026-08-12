@@ -78,46 +78,61 @@ function showWorkshopScreen() {
   showScreen(`
     <h2 class="screen-title">工坊</h2>
     <div class="card">
-      <div class="menu-item" onclick="showUpgradeList('weapon')">⚔️ 強化武器</div>
-      <div class="menu-item" onclick="showUpgradeList('armor')">🛡️ 強化裝備</div>
+      <div class="menu-item" onclick="showWorkshopUpgradeScreen()">⚔️🛡️ 強化裝備（武器＋防具）</div>
       ${potionRoomItem}
     </div>
     <button class="action-btn secondary" onclick="showShelterScreen()">返回避難所</button>
   `, { withTopbar: true });
 }
 
-function showUpgradeList(kind) {
+// 武器＋裝備合併成同一頁（納可要求）：每個角色一張卡，武器、防具各一個強化按鈕；頂部有「一鍵升級」。
+function showWorkshopUpgradeScreen() {
   let rows = SHELTER_PARTY_IDS.map((id) => {
     let c = CHARACTERS[id];
     let name = id === "主角" ? (gameState.playerName || "你") : c.name;
     let cur = gameState.characters[id];
-    let curLv = kind === "weapon" ? cur.weaponLv : cur.armorLv;
-    let cost = getUpgradeCost(curLv);
-    let canAfford = gameState.crystal >= cost;
 
-    let curVal, nextVal, label;
-    if (kind === "weapon") {
-      label = "攻擊力";
-      curVal = (c.baseAtk * getCharacterWeaponMultiplier(id)).toFixed(1);
-      nextVal = (c.baseAtk * Math.pow(UPGRADE_GROWTH_RATE, curLv + 1)).toFixed(1);
-    } else {
-      label = "血量";
-      curVal = getCharacterMaxHp(id);
-      nextVal = Math.ceil(curVal * UPGRADE_GROWTH_RATE);
-    }
+    // 武器
+    let wLv = cur.weaponLv, wCost = getUpgradeCost(wLv);
+    let wCur = (c.baseAtk * getCharacterWeaponMultiplier(id)).toFixed(1);
+    let wNext = (c.baseAtk * Math.pow(UPGRADE_GROWTH_RATE, wLv + 1)).toFixed(1);
+    let wAfford = gameState.crystal >= wCost;
+    // 防具
+    let aLv = cur.armorLv, aCost = getUpgradeCost(aLv);
+    let aCur = getCharacterMaxHp(id);
+    let aNext = Math.ceil(aCur * UPGRADE_GROWTH_RATE);
+    let aAfford = gameState.crystal >= aCost;
 
     return `<div class="menu-item" style="cursor:default;">
-      <div><strong>${c.icon} ${name}</strong> <span class="dim">目前${label} ${curVal}</span></div>
-      <div class="dim">升級後 ${label}：${nextVal} ／ 花費 💎${cost}</div>
-      <button class="action-btn" style="margin-top:8px;" title="花費 💎${cost}，將${name}的${label}從 ${curVal} 提升到 ${nextVal}" ${canAfford ? "" : "disabled"} onclick="confirmUpgrade('${kind}', '${id}')">確認強化</button>
+      <div><strong>${c.icon} ${name}</strong></div>
+      <div class="dim" style="margin-top:4px;">⚔️ 武器 Lv.${wLv}　攻擊力 ${wCur} → ${wNext}</div>
+      <button class="action-btn" style="margin-top:4px;" title="花費 💎${wCost}，將${name}的攻擊力從 ${wCur} 提升到 ${wNext}" ${wAfford ? "" : "disabled"} onclick="confirmUpgrade('weapon', '${id}')">強化武器 💎${wCost}</button>
+      <div class="dim" style="margin-top:8px;">🛡️ 防具 Lv.${aLv}　血量 ${aCur} → ${aNext}</div>
+      <button class="action-btn" style="margin-top:4px;" title="花費 💎${aCost}，將${name}的血量從 ${aCur} 提升到 ${aNext}" ${aAfford ? "" : "disabled"} onclick="confirmUpgrade('armor', '${id}')">強化防具 💎${aCost}</button>
     </div>`;
   }).join("");
 
+  // 一鍵升級：只要「當前最低等級的那項」還升得起就顯示可按（成本最低的一定是等級最低那項）
+  let cheapest = collectUpgradeItems().reduce((best, it) => it.lv < best.lv ? it : best);
+  let canOneClick = gameState.crystal >= getUpgradeCost(cheapest.lv);
+
   showScreen(`
-    <h2 class="screen-title">${kind === "weapon" ? "強化武器" : "強化裝備"}</h2>
+    <h2 class="screen-title">強化裝備</h2>
+    <div class="card">
+      <p class="dim">目前潛晶 💎${gameState.crystal}。武器提升攻擊力、防具提升血量。</p>
+      <button class="action-btn" title="盡可能花光潛晶，優先升等級最低的" ${canOneClick ? "" : "disabled"} onclick="oneClickUpgrade()">⚡ 一鍵升級</button>
+    </div>
     <div class="card">${rows}</div>
     <button class="action-btn secondary" onclick="showWorkshopScreen()">返回</button>
   `, { withTopbar: true });
+}
+
+// 一鍵升級用：把全體「武器＋防具」列成可升項目，順序＝優先序（先所有人武器、再所有人防具，人照 SHELTER_PARTY_IDS）。
+function collectUpgradeItems() {
+  let items = [];
+  SHELTER_PARTY_IDS.forEach((id) => items.push({ id, kind: "weapon", lv: gameState.characters[id].weaponLv }));
+  SHELTER_PARTY_IDS.forEach((id) => items.push({ id, kind: "armor", lv: gameState.characters[id].armorLv }));
+  return items;
 }
 
 function confirmUpgrade(kind, charId) {
@@ -129,7 +144,36 @@ function confirmUpgrade(kind, charId) {
   if (kind === "weapon") cur.weaponLv++;
   else cur.armorLv++;
   systemToast(`✅ 強化完成（花費 💎${cost}）`);
-  showUpgradeList(kind);
+  showWorkshopUpgradeScreen();
+}
+
+// 一鍵升級（納可要求）：先問確認，再盡可能花光潛晶。
+function oneClickUpgrade() {
+  openGenericModal("一鍵升級", `
+    <p>確定要一鍵升級嗎？</p>
+    <p class="dim">會盡可能把潛晶花完：每次都先升「目前等級最低」的那項；同等級時照順序（先所有人的武器，再所有人的防具），直到潛晶不夠為止。</p>
+    <button class="action-btn" onclick="doOneClickUpgrade()">確定，一鍵升級</button>
+    <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">取消</button>
+  `);
+}
+
+function doOneClickUpgrade() {
+  closeGenericModal();
+  let spent = 0, count = 0;
+  // 每一步重新盤點：挑等級最低的項目（reduce 用「嚴格小於才替換」→ 同級時保留順序在前的＝武器優先、人照序），升它。
+  while (count < 999) {
+    let items = collectUpgradeItems();
+    let target = items.reduce((best, it) => (it.lv < best.lv ? it : best));
+    let cost = getUpgradeCost(target.lv);
+    if (gameState.crystal < cost) break; // 連最低等級（成本最低）那項都升不起 → 停
+    gameState.crystal -= cost;
+    if (target.kind === "weapon") gameState.characters[target.id].weaponLv++;
+    else gameState.characters[target.id].armorLv++;
+    spent += cost; count++;
+  }
+  if (count > 0) systemToast(`⚡ 一鍵升級完成：共升 ${count} 級，花費 💎${spent}`);
+  else systemToast("潛晶不夠，一次都升不了。", true);
+  showWorkshopUpgradeScreen();
 }
 
 // ---------- 家：煮飯／技能管理／圖鑑／整備出發（補血藥補充已併入整備出發；改名在左上角選單） ----------
