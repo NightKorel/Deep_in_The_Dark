@@ -26,6 +26,7 @@ const ACHIEVEMENTS = [
   { id: "精益求精", name: "精益求精", icon: "⚔️", desc: "把任一武器強化到 3 級。", hint: "同一把刀，磨了又磨。", relic: "精鍛核心", check: () => Object.values(gameState.characters).some((c) => c.weaponLv >= 3) },
   { id: "岩洞的盡頭", name: "岩洞的盡頭", icon: "🐍", desc: "擊敗巨岩蚺，打通第二圈層。", hint: "石頭會動的那一端。", relic: "岩蚺之牙", check: () => !!gameState.storyFlags.layer2Cleared },
   { id: "岩洞圖鑑", name: "岩洞圖鑑", icon: "🦂", desc: "見過第二層所有生物。", hint: "把岩縫裡的每雙眼睛，都數清楚。", relic: "岩鱗甲片", check: () => ["刺螯", "膜翼", "垂垂耳", "尖嘴鼠", "巨岩蚺"].every((m) => gameState.bestiary[m]) },
+  { id: "風谷圖鑑", name: "風谷圖鑑", icon: "🪶", desc: "見過第三層所有生物。", hint: "把風裡掠過的每一道影子，都認得。", relic: "風羽", check: () => ["擬巢怪", "掠禽", "青羽", "枝角翎", "花尾"].every((m) => gameState.bestiary[m]) },
   { id: "魔藥師", name: "魔藥師", icon: "🧫", desc: "製作出第一瓶魔藥。", hint: "第一次，瓶子裡冒出了顏色。", relic: "藥師之瓶", check: () => Object.keys(gameState.discoveredPotions || {}).length >= 1 },
   { id: "美食家", name: "美食家", icon: "🍱", desc: "做過 4 種以上不同的料理。", hint: "餐桌上，擺得下四種以上。", relic: "饗宴之力", check: () => Object.keys(gameState.discoveredDishes || {}).length >= 4 },
   { id: "深潛老手", name: "深潛老手", icon: "🗺️", desc: "累計出發深潛 10 次。", hint: "來回夠多趟，黑暗開始眼熟。", relic: "老手護符", check: () => (gameState.stats.divesStarted || 0) >= 10 },

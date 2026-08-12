@@ -733,6 +733,13 @@ function dealDamageToAlly(enemy, allyId, dmgRange) {
     spawnFloatingNumber(allyId, "閃避", "miss");
     return { dmg: 0, miss: true, crit: false };
   }
+  // 遺物「風羽」等提供的常駐閃避率（資料驅動 dodge-rate-add，可多件加總）
+  let relicDodge = relicSum(m, "dodge-rate-add");
+  if (relicDodge > 0 && chance(relicDodge)) {
+    flashUnit(allyId, "target");
+    spawnFloatingNumber(allyId, "閃避", "miss");
+    return { dmg: 0, miss: true, crit: false };
+  }
   let result = damageCalc(dmgRange, {
     target: m,
     targetGuard: m.guardActive,

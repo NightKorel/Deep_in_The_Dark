@@ -801,6 +801,7 @@ const RELICS = [
   { id: "饗宴之力", name: "錫製飯盒", cat: "recover", desc: "最大血量 +8%", effect: { type: "maxhp-percent", value: 0.08 } },
   { id: "老手護符", name: "老手護符", cat: "support", desc: "使用技能時8%機率不消耗次數", effect: { type: "skill-no-cost-chance", value: 0.08 } },
   { id: "萬物歸一", name: "纏手綁帶", cat: "attack",  desc: "技能傷害 +10%", effect: { type: "skill-dmg-percent", value: 0.10 } },
+  { id: "風羽", name: "風羽", cat: "defense", desc: "閃避率 +8%（被攻擊時有機率完全閃開）", effect: { type: "dodge-rate-add", value: 0.08 } },
 ];
 const RELIC_MAX_PER_CHARACTER = 3;
 // 依 effect.type 掃一個角色身上所有遺物、把同型效果的 value 加總（給戰鬥碼即時計算用）。
