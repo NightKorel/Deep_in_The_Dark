@@ -1134,12 +1134,49 @@ function casinoDoExchange() {
   renderCasinoHub();
 }
 
+// 交易所商品：只賣「一般版」食材與藥材（稀有版買不到），用代幣。第一層食材便宜、第二層貴一階、藥材再貴一點。
+// 賭場的東西不能影響強度，這些都是「消耗品」（食材煮料理、藥材製魔藥＝暫時性 buff），符合規則；純粹省得玩家一直刷。
+const TRADEHOUSE_MATERIALS = [
+  { title: "🍖 食材（第一圈層）", kind: "food", price: 3, ids: ["凝膠凍", "顎獸肉塊", "翅鱗魚片", "水藻脆球"] },
+  { title: "🍗 食材（第二圈層）", kind: "food", price: 5, ids: ["垂垂耳腿肉", "尖嘴鼠肉"] },
+  { title: "🧪 藥材（第二圈層）", kind: "herb", price: 6, ids: ["刺螯毒腺", "膜翼血囊"] },
+];
+
 function casinoTradehouseModal() {
+  let sections = TRADEHOUSE_MATERIALS.map((sec) => {
+    let rows = sec.ids.map((id) => {
+      let def = sec.kind === "food" ? FOODS[id] : HERBS[id];
+      if (!def) return "";
+      let inv = sec.kind === "food" ? gameState.rawFoodInventory[id] : gameState.rawHerbInventory[id];
+      let have = inv ? (inv.normal || 0) : 0;
+      let afford = gameState.tokens >= sec.price;
+      return `<div class="menu-item" style="cursor:default; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <span>${def.name} <span class="dim">（庫存 ${have}）</span></span>
+        <button class="action-btn" style="margin:0;" ${afford ? "" : "disabled"} onclick="casinoBuyMaterial('${sec.kind}','${id}',${sec.price})">🪙${sec.price} 買</button>
+      </div>`;
+    }).join("");
+    return `<h3 style="margin:14px 0 6px;">${sec.title}</h3>${rows}`;
+  }).join("");
+
   openGenericModal("🛒 交易所", `
-    <p>H 攤了攤手：「哎呀，架上還空著呢——好東西還在進貨啦！大量代幣以後可以在這換一些很酷的玩意兒，或是省得你一直刷食材藥材的消耗品。」</p>
-    <p class="dim">（交易所商品尚在設計中，敬請期待。）</p>
-    <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">關閉</button>
+    <p class="dim">H：「懶得一趟趟刷素材？花點代幣，我這兒現貨供應～ 一般貨隨你搬，稀有的可沒得賣喔。」</p>
+    <p>🪙 代幣 <b>${gameState.tokens}</b></p>
+    ${sections}
+    <button class="action-btn secondary" style="margin-top:12px;" onclick="closeGenericModal()">關閉</button>
   `);
+}
+
+function casinoBuyMaterial(kind, id, price) {
+  if (gameState.tokens < price) { systemToast("代幣不夠。", true); return; }
+  let def = kind === "food" ? FOODS[id] : HERBS[id];
+  if (!def) return;
+  gameState.tokens -= price;
+  let store = kind === "food" ? gameState.rawFoodInventory : gameState.rawHerbInventory;
+  if (!store[id]) store[id] = { normal: 0, rare: 0 };
+  store[id].normal++;
+  systemToast(`🛒 買了 ${def.name} x1。`);
+  casinoTradehouseModal();
+  renderCasinoHub();
 }
 
 // ========================================

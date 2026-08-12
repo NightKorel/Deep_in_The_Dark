@@ -117,6 +117,22 @@ body {
 .storylog-line { margin: 10px 0; color: #d4dbe3; line-height: 1.7; }
 .storylog-speaker { color: #4fa8d8; }
 
+/* ---- 小美化 ---- */
+/* 換畫面時內容柔和淡入（showScreen 每次重建 innerHTML，新元素會自動播放一次） */
+@keyframes ui-fade-in { from { opacity: 0; } to { opacity: 1; } }
+#main-screen > * { animation: ui-fade-in 0.28s ease; }
+
+/* 血量偏低時血條會呼吸般閃動，提醒危險 */
+@keyframes hp-low-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.bar-fill.hp-fill.hp-low { animation: hp-low-pulse 1s ease-in-out infinite; }
+
+/* 戰鬥中「輪到誰」的角色卡片會脈動高亮，一眼看出換誰 */
+@keyframes active-turn-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(79, 168, 216, 0.35); }
+  50% { box-shadow: 0 0 20px rgba(79, 168, 216, 0.75); }
+}
+.battle-unit.active-turn { animation: active-turn-pulse 1.2s ease-in-out infinite; }
+
 /* 主畫面容器 */
 #main-screen {
   min-height: 100vh;
