@@ -13,9 +13,11 @@
 
 - 本機資料夾可能是**舊的**（雲端環境會回收、也可能是別條舊分支），GitHub 上的 `main`
   才是遊戲的真身。直接在本機舊版上動手，會改在過時的程式上，跟正式版對不起來。
-- 具體要做：先 `git fetch origin main`，確認本機對齊到最新的 `main`（例如
-  `git checkout -B <工作分支> origin/main`）再開始，並看一下最近的提交紀錄/分支/PR，
-  確認自己是站在最新版上工作。
+- 具體要做：先 `git fetch origin main`，然後 **`git checkout -B main origin/main`
+  直接站到 main 上**再開始，並看一下最近的提交紀錄，確認自己在最新版上工作。
+- **⚠️ 常見坑（發生過、害測試員玩不到）：本機常被重置到舊的開發分支
+  `claude/game-code-recovery-68ihas`，做完 commit 卻沒進 main。開工第一件事就切回 main、
+  在 main 上做、往 main 推；收尾用 `git ls-remote origin refs/heads/main` 確認真的更新了。**
 - **這條沒做，等於白做。任何情況都不例外。**
 
 ---
