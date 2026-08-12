@@ -71,8 +71,10 @@
 · 打贏第二層 Boss 已正式接上 layer2Cleared（不再只靠作弊鈕解鎖避難所賭場）。
 
 · 【交易所（避難所賭場的🛒）】已上線：用代幣買「一般版」食材/藥材，稀有版買不到。
-  定價：第一層食材3、第二層食材5、藥材6（第一層便宜、第二層貴一階）。純消耗品、不影響強度。
-  程式：TRADEHOUSE_MATERIALS＋casinoTradehouseModal／casinoBuyMaterial（08_賭場.js）。
+  定價（納可 2026-08-12 拍板，改打包制）：不拆賣，一律「一組 5 個」——食材一組 50、藥材一組 100。
+  （原本一個食材才 3~5 太便宜；一局賭下來穩賺 50 起跳，改打包拉高單價才有份量。）純消耗品、不影響強度。
+  程式：常數 TRADEHOUSE_PACK/TRADEHOUSE_FOOD_PRICE/TRADEHOUSE_HERB_PRICE＋TRADEHOUSE_MATERIALS
+  ＋casinoTradehouseModal／casinoBuyMaterial（08_賭場.js）。
 · 【賭場「超高價酷東西」通則（納可拍板，實作待有空）】：
   - 賭場物品一律「不能影響強度」，只能純外觀/收藏，或不影響數值的華麗消耗品。
   - 買到的酷東西都要能「自由開/關」（玩家可切換是否套用）。

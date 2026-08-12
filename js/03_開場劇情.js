@@ -161,10 +161,10 @@ function continueOpeningAfterFight() {
     { speaker: "", text: "一個人正沉默地磨著刀，聽見動靜抬頭看向你。" },
     { speaker: "K", text: "自我介紹一下，我叫 K，那邊磨刀的是 V。" },
     { speaker: "K", text: "V，這是我在路上遇到的人……真沒想到，這裡還能看見其他倖存者。" },
-    { speaker: "", text: "V嗯了一聲。K再次看向你。" },
+    { speaker: "", text: "V 嗯了一聲。K 再次看向你。" },
     { speaker: "K", text: "我們原本是三人小隊，第三個人叫 L。都是在這鬼地方認識的，互相扶持，努力活著。" },
-    { speaker: "K", text: "但是幾天前，L落入一個深坑後失蹤了。" },
-    { speaker: "K", text: "我……這幾天都在找他，一直沒有找到。潛淵裡太多危險了，地形像是活的一樣，不斷挪動、改變……只靠我和V走不了太遠。" },
+    { speaker: "K", text: "但是幾天前，L 落入一個深坑後失蹤了。" },
+    { speaker: "K", text: "我……這幾天都在找他，一直沒有找到。潛淵裡太多危險了，地形像是活的一樣，不斷挪動、改變……只靠我和 V 走不了太遠。" },
     { speaker: "", text: "他苦笑。" },
     { speaker: "K", text: "還是換個話題吧。啊，話說回來，你怎麼稱呼？" },
     { speaker: "", text: "你張了張嘴，卻什麼都想不起來，腦中連名字都是一片空白。" },
@@ -183,25 +183,25 @@ function continueOpeningAfterNaming() {
   playDialogue([
     { speaker: "K", text: `${name}，嗎。好名字。` },
     { speaker: "K", text: "本來想問你是怎麼掉下來的……算了，不管怎樣都不讓人愉快，不問了。" },
-    { speaker: "K", text: "我們都是落在這個被世界拋棄的地方的倖存者。避難所裡的事有分工：V 擅長做武器、我做飯、L會煮藥。" },
-    { speaker: "", text: "K從口袋翻出了一些黑色、半透明的……石頭？" },
+    { speaker: "K", text: "我們都是落在這個被世界拋棄的地方的倖存者。避難所裡的事有分工：V 擅長做武器、我做飯、L 會煮藥。" },
+    { speaker: "", text: "K 從口袋翻出了一些黑色、半透明的……石頭？" },
     { speaker: "K", text: "V，能麻煩你幫忙做一把武器嗎？" },
-    { speaker: "", text: "V點頭，拿起 K 手上的幾塊碎石，閉上眼。" },
-    { speaker: "", text: "V的手中發出微光，碎塊像融化般緩緩改變形狀，最後化成一把劍。V將劍遞到你面前。" },
+    { speaker: "", text: "V 點頭，拿起 K 手上的幾塊碎石，閉上眼。" },
+    { speaker: "", text: "V 的手中發出微光，碎塊像融化般緩緩改變形狀，最後化成一把劍。V 將劍遞到你面前。" },
     { speaker: "K", text: "這是潛晶。算是……在這詭異的地方，唯一能挖到的好東西。" },
     { speaker: "K", text: "我們過往所知的魔法，能做的是「改變性質」和「製造現象」。依靠著自己的知識和思考，轉移能量或影響世界上本就存在的事物，像是造風、凝冰、燃燒等。" },
     { speaker: "K", text: "但潛晶不一樣，它的力量是「消耗自身進行創造」，從無到有。手握潛晶，灌注自己的「想像」，就能改變現實、創造出原本不存在的東西。" },
-    { speaker: "", text: "K指了指你剛拿到的劍。" },
+    { speaker: "", text: "K 指了指你剛拿到的劍。" },
     { speaker: "K", text: "構造較為簡單、強度一般的東西只需要幾顆潛晶。但要讓它更硬、更鋒利或者更複雜，消耗會直線上升。" },
     { speaker: "K", text: "……我們拿到的一部分潛晶得拿來維修避難所，所以一直存不了太多。" },
     { speaker: "K", text: "有時候維修用的潛晶不夠，工坊那邊就得暫時停擺，不過避難所不至於馬上垮掉就是了。" },
-    { speaker: "", text: "K正要繼續說明，一旁黑髮藍眼的人冷不防開了口。" },
+    { speaker: "", text: "K 正要繼續說明，一旁黑髮藍眼的人冷不防開了口。" },
     { speaker: "V", text: `……你還沒給 ${name} 吃的。` },
     { speaker: "K", text: "啊，對喔！你一定餓了吧，先吃這個墊墊肚子吧。" },
-    { speaker: "", text: "K在一堆雜物裡翻了翻，拿出一塊用葉子包著的……餅？" },
+    { speaker: "", text: "K 在一堆雜物裡翻了翻，拿出一塊用葉子包著的……餅？" },
     { speaker: "", text: "你試著咬了一口，有點硬，口感乾又粉，有股淡淡的草味。不怎麼好吃。" },
     { speaker: "K", text: "抱歉，暫時只有這個，忍耐一下。" },
-    { speaker: "", text: "K歉意地眨了眨眼。" },
+    { speaker: "", text: "K 歉意地眨了眨眼。" },
     { speaker: "K", text: "去外面探索時偶爾能……從那些「生物」上，嗯……取得一些食材，不過要看運氣。" },
     { speaker: "K", text: "平常我們都吃這裡能生長的塊莖類食物，靠一點點潛晶創造肥料種出來的，能吃飽但不太好吃。就是我剛剛給你的那個。" },
     { speaker: "K", text: "說到材料，因為 L 不在沒辦法製藥，我的「想像」也不夠強，只能用潛晶做出最基本的藥。先拿去用吧。" },
@@ -219,7 +219,7 @@ function finishOpeningStory() {
   systemToast(`歡迎來到潛淵，${gameState.playerName}。`);
 }
 
-// ---------- 作弊：跳過新手教學 ----------
+// ---------- 作弊：跳過序章 ----------
 // 直接套用正常走完開場劇情會有的結果（不強制輸入名字，維持空白，displayName()會顯示「你」，之後可以從☰選單改名）
 function cheatSkipTutorial() {
   closeGenericModal();
@@ -233,5 +233,5 @@ function cheatSkipTutorial() {
   gameState.storyFlags.introDone = true;
   gameState.potions = 3;
   showShelterScreen();
-  systemToast("已跳過新手教學。想改名的話可以從左上角☰選單改。");
+  systemToast("已跳過序章。想改名的話可以從左上角☰選單改。");
 }

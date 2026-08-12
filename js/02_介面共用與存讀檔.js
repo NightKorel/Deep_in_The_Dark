@@ -235,7 +235,7 @@ function renderSettingsOptionsModal() {
     <div class="menu-item" style="cursor:default; display:flex; align-items:center; justify-content:space-between; gap:12px;">
       <div>
         <strong>🎨 ${displayName("主角")} 的代表色</strong>
-        <div class="dim">用來標示名字/血條卡片左側的顏色，K是棕色、V是藍色、L是綠色，主角可以自己選。</div>
+        <div class="dim">用來標示名字/血條卡片左側的顏色，K 是棕色、V 是藍色、L 是綠色，主角可以自己選。</div>
       </div>
       <input type="color" value="${gameState.playerColor}" oninput="setPlayerColor(this.value)" style="width:44px; height:36px; padding:0; border:2px solid #2d333b; border-radius:6px; background:none; cursor:pointer; flex-shrink:0;">
     </div>
@@ -264,7 +264,7 @@ function openCheatModal() {
   // 「跳過劇情」做成一排小晶片按鈕，之後圈層變多只要往這個陣列加一項就好，版面自動排整齊（納可要求）。
   // 已完成的顯示為灰色打勾、不可點；未完成的可點跳關。
   let skipStages = [
-    { label: "新手教學", done: gameState.storyFlags.introDone, fn: "cheatSkipTutorial()" },
+    { label: "序章", done: gameState.storyFlags.introDone, fn: "cheatSkipTutorial()" },
     { label: "第一層後", done: gameState.storyFlags.lRescued, fn: "cheatCompleteLayer1()" },
     { label: "第二層後", done: gameState.storyFlags.layer2Cleared, fn: "cheatCompleteLayer2()" },
     { label: "第三層後", done: gameState.storyFlags.layer3Cleared, fn: "cheatCompleteLayer3()" },

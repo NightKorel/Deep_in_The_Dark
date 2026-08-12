@@ -232,12 +232,13 @@ function renderDiveScreen() {
   if (nodeIndex === depth - 1 && layer === 3 && !gameState.storyFlags.boss3DoorShown) {
     gameState.storyFlags.boss3DoorShown = true;
     playDialogue([
-      { speaker: "", text: "前方的風忽然停了。整片風谷安靜得不自然，連草都不敢動。" },
-      { speaker: "V", text: "……前面有東西。很大。" },
-      { speaker: "L", text: "小心牠的尾羽。我在遠處瞥過一眼——那紋路會讓人看到出神，別直視太久。" },
+      { speaker: "", text: "前方的風忽然停了。整片風谷安靜得不自然。" },
+      { speaker: "V", text: "……前面有東西。" },
+      { speaker: "L", text: "小心牠的尾羽。我在遠處瞥過一眼……那紋路會讓人看到出神，別直視太久。" },
       { speaker: "K", text: "看一眼就出神？那我閉著眼睛打行不行。" },
       { speaker: "L", text: "行的話我第一個學你。" },
-      { speaker: "K", text: `${displayName("主角")}，穩住陣腳。這一關過了，風谷就是我們的了。` },
+      { speaker: "K", text: "嗚、好啦……" },
+      { speaker: "K", text: `${displayName("主角")}，穩住陣腳，我們上吧。` },
     ], renderDiveScreen, { id: "第三層Boss門前", title: "第三圈層・Boss 門前", order: 45 });
     return;
   }
@@ -394,10 +395,10 @@ function handleLayer1BossVictory() {
     { speaker: "", text: "島鯨龐大的身軀漸漸沉入水底，不再動彈。" },
     { speaker: "", text: "水面下傳出微弱的動靜，然後是氣泡——一個人浮了上來，銀白色的長髮在水中漂浮。" },
     { speaker: "K", text: "——L！！" },
-    { speaker: "", text: "K、V和你一起把人拉上岸邊。那人咳了些水，癱坐在地喘著氣，綠眼睛半閉著。" },
-    { speaker: "", text: "K一把抱住了他。" },
+    { speaker: "", text: "K、V 和你一起把人拉上岸邊。那人咳了些水，癱坐在地喘著氣，綠眼睛半閉著。" },
+    { speaker: "", text: "K 一把抱住了他。" },
     { speaker: "K", text: "……找到了，終於找到了……" },
-    { speaker: "", text: "V蹲下來輕拍著K的肩膀，深藍的眸子卻看向你。他眨了眨眼。" },
+    { speaker: "", text: "V 蹲下來輕拍著 K 的肩膀，深藍的眸子卻看向你。他眨了眨眼。" },
     { speaker: "", text: "你從那個眼神讀出了一絲感謝。" },
     { speaker: "", text: "……" },
     // ---- 回到避難所後：L 恢復、道謝，K 的真心話 ----
@@ -411,9 +412,9 @@ function handleLayer1BossVictory() {
     { speaker: "L", text: "你……我們素昧平生。" },
     { speaker: "L", text: "謝謝你。為不認識的人冒險，這種傻事一般人是不會做的。" },
     { speaker: "V", text: "他是在道謝。" },
-    { speaker: "", text: "V小聲地說，L瞥了他一眼。" },
+    { speaker: "", text: "V 小聲地說，L 瞥了他一眼。" },
     { speaker: "L", text: "我知道我在說什麼。" },
-    { speaker: "", text: "L站起身，環顧避難所，目光在幾個空掉的架子上停了停。" },
+    { speaker: "", text: "L 站起身，環顧避難所，目光在幾個空掉的架子上停了停。" },
     { speaker: "L", text: "魔藥的庫存……全空了，補血藥也剩得不多。這段日子，你們過得很省吧。" },
     { speaker: "L", text: "補血藥很簡單，我來做。以後每次出發前，我都會幫你把補血藥補滿，不用再花潛晶買了。" },
     { speaker: "L", text: "魔藥就不行了，需要特定的藥材。我之前看到過幾種還算合適的素材，既然要往下走，順路去找找看吧。" },
@@ -445,16 +446,16 @@ function handleLayer2BossVictory() {
     { speaker: "", text: "L 蹲下身，在崩塌的碎石與那東西守著的角落裡翻找，採集了些什麼，仔細收好。" },
     { speaker: "L", text: "夠了。這些拿回去，應該能做出像樣的藥。有一些想法可以嘗試。" },
     // 外敷機制解說：戰鬥裡「直飲／外敷」兩顆按鈕在此戰後解鎖，保留說明讓玩家知道多了一種用法。
-    { speaker: "L", text: "比如說補血藥——不一定要一口灌下去。敷在傷口上，藥效能拖著慢慢滲，撐得比較久。" },
-    { speaker: "L", text: "回去我改一批新的。之後戰鬥裡你們自己選：急著保命就直飲，想撐久一點就外敷。" },
-    { speaker: "K", text: "……又一個區域，我們過了。" },
-    { speaker: "L", text: "別高興得太早。往下只會更難走。" },
+    { speaker: "L", text: "比如說補血藥……不一定要一口喝下去。如果敷在傷口上，或許能讓效果更好，只是生效比較慢。" },
+    { speaker: "L", text: "回去我試著做一批新的。" },
+    { speaker: "K", text: "……又一個區域。" },
+    { speaker: "L", text: "嗯，往下只會更難走。" },
   ], () => applyShelterReturn("boss"), { id: "第二層結局", title: "第二圈層・巨岩蚺之後", order: 40 });
 }
 
 // 第三層 Boss（花尾）勝利。設 layer3Cleared 旗標；首通播一段風谷戰後收尾。
-// ⚠️ 批次②「K 撿到怪東西 → 開盒子 → K 消失」的大劇情之後再從這裡接（見 設計文件/後續圈層規劃.txt、第四層規劃.txt）；
-//    現在先做乾淨的戰後收尾，別跟批次②衝突。
+// ⚠️ 批次②「K 撿到怪東西 → 開盒子 → K 消失」大劇情：戰後收尾已接上「K 撿到匣子」的開頭（納可微調版）；
+//    「回避難所開盒子 → K 消失」的後續大劇情之後再接（見 設計文件/後續圈層規劃.txt、第四層規劃.txt）。
 function handleLayer3BossVictory() {
   let isFirstClear = !gameState.storyFlags.layer3Cleared;
   gameState.storyFlags.layer3Cleared = true;
@@ -466,19 +467,22 @@ function handleLayer3BossVictory() {
   }
   playDialogue([
     { speaker: "", text: "花尾的尾羽緩緩闔上，那些像眼睛的紋路一個接一個黯了下去。牠龐大的身體歪向一邊，沒入風谷的草浪裡。" },
-    { speaker: "", text: "風重新流動起來，剛才那股令人頭暈的靜默散了。" },
+    { speaker: "", text: "風重新流動起來。" },
     { speaker: "K", text: "呼……剛剛那尾巴一張開，我腦子就一片空白，差點對著 V 揮下去。" },
     { speaker: "V", text: "……你揮了。我閃開了。" },
-    { speaker: "K", text: "欸，別記這種帳啊。" },
-    { speaker: "", text: "L 蹲在花尾倒下的地方，撥開草叢採了些碧綠的翎羽和絨毛，仔細收進袋子。" },
-    { speaker: "L", text: "這裡的東西比下面兩層都難得。碧翎、巢絨……夠我試幾種新藥了。" },
-    { speaker: "L", text: "風谷過了。再往下……我沒來過。" },
-    { speaker: "K", text: "那就一步一步走。反正我們四個一直都是這麼過來的。" },
-    { speaker: "", text: "四個人在草浪裡站了一會，然後轉身，往回程的路走去。" },
+    { speaker: "K", text: "欸！別記這種帳啊！" },
+    { speaker: "", text: "K 心虛地撓了撓頭，小聲跟 V 道歉。L 在附近撥開草叢，採了些絨毛和碧綠的翎羽，仔細收進袋子。" },
+    { speaker: "L", text: "這層的東西也不錯……夠我試幾種新藥了。" },
+    { speaker: "K", text: "等等……這是什麼？" },
+    { speaker: "", text: "K 在花尾的身下找到了一個……匣子？他嘗試掰了掰，沒開。" },
+    { speaker: "V", text: "鎖扣鏽蝕，工具能打開。" },
+    { speaker: "L", text: "……如果是某人留下的線索就好了。K，把它帶回去吧。" },
+    { speaker: "K", text: "好！" },
+    { speaker: "", text: "你們離開了風谷。" },
   ], () => applyShelterReturn("boss"), { id: "第三層結局", title: "第三圈層・花尾之後", order: 50 });
 }
 
-// 作弊共用：清掉殘留的對話框覆蓋層、確保過了新手教學、把第一層路上只播一次的教學/劇情標記成看過
+// 作弊共用：清掉殘留的對話框覆蓋層、確保過了序章、把第一層路上只播一次的教學/劇情標記成看過
 // （避免之後真的出征時，在L已入隊狀態下又跳出第一層的開場白/岔路/意圖/Boss門前劇情，跟現況矛盾）。
 function cheatPrepMarkLayer1Seen() {
   closeGenericModal();

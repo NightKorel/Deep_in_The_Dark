@@ -1134,12 +1134,17 @@ function casinoDoExchange() {
   renderCasinoHub();
 }
 
-// 交易所商品：只賣「一般版」食材與藥材（稀有版買不到），用代幣。第一層食材便宜、第二層貴一階、藥材再貴一點。
+// 交易所商品：只賣「一般版」食材與藥材（稀有版買不到），用代幣。
 // 賭場的東西不能影響強度，這些都是「消耗品」（食材煮料理、藥材製魔藥＝暫時性 buff），符合規則；純粹省得玩家一直刷。
+// 【定價（納可 2026-08-12 拍板）】不拆賣，一律「一組 5 個」：食材一組 50、藥材一組 100。
+//   理由：一局賭下來穩賺 50 起跳，原本一個食材才 3~5 代幣太便宜、失去意義；改成打包賣、拉高單價才有份量。
+const TRADEHOUSE_PACK = 5;            // 交易所不拆賣，一律「一組 5 個」
+const TRADEHOUSE_FOOD_PRICE = 50;     // 食材：一組 5 個 = 50 代幣
+const TRADEHOUSE_HERB_PRICE = 100;    // 藥材：一組 5 個 = 100 代幣
 const TRADEHOUSE_MATERIALS = [
-  { title: "🍖 食材（第一圈層）", kind: "food", price: 3, ids: ["凝膠凍", "顎獸肉塊", "翅鱗魚片", "水藻脆球"] },
-  { title: "🍗 食材（第二圈層）", kind: "food", price: 5, ids: ["垂垂耳腿肉", "尖嘴鼠肉"] },
-  { title: "🧪 藥材（第二圈層）", kind: "herb", price: 6, ids: ["刺螯毒腺", "膜翼血囊"] },
+  { title: "🍖 食材（第一圈層）", kind: "food", price: TRADEHOUSE_FOOD_PRICE, ids: ["凝膠凍", "顎獸肉塊", "翅鱗魚片", "水藻脆球"] },
+  { title: "🍗 食材（第二圈層）", kind: "food", price: TRADEHOUSE_FOOD_PRICE, ids: ["垂垂耳腿肉", "尖嘴鼠肉"] },
+  { title: "🧪 藥材（第二圈層）", kind: "herb", price: TRADEHOUSE_HERB_PRICE, ids: ["刺螯毒腺", "膜翼血囊"] },
 ];
 
 // 「素材是否見過」＝跟圖鑑一樣的判斷：只有遇過（bestiary 記錄過）會掉這個素材的怪，才算見過、才買得到。
@@ -1169,7 +1174,7 @@ function casinoTradehouseModal() {
       let afford = gameState.tokens >= sec.price;
       return `<div class="menu-item" style="cursor:default; display:flex; align-items:center; justify-content:space-between; gap:10px;">
         <span>${def.name} <span class="dim">（庫存 ${have}）</span></span>
-        <button class="action-btn" style="margin:0;" ${afford ? "" : "disabled"} onclick="casinoBuyMaterial('${sec.kind}','${id}',${sec.price})">🪙${sec.price} 買</button>
+        <button class="action-btn" style="margin:0;" ${afford ? "" : "disabled"} onclick="casinoBuyMaterial('${sec.kind}','${id}',${sec.price})">🪙${sec.price} 買 ${TRADEHOUSE_PACK} 個</button>
       </div>`;
     }).join("");
     return `<h3 style="margin:14px 0 6px;">${sec.title}</h3>${rows}`;
@@ -1191,8 +1196,8 @@ function casinoBuyMaterial(kind, id, price) {
   gameState.tokens -= price;
   let store = kind === "food" ? gameState.rawFoodInventory : gameState.rawHerbInventory;
   if (!store[id]) store[id] = { normal: 0, rare: 0 };
-  store[id].normal++;
-  systemToast(`🛒 買了 ${def.name} x1。`);
+  store[id].normal += TRADEHOUSE_PACK; // 不拆賣：一次進一組（5 個）
+  systemToast(`🛒 買了 ${def.name} x${TRADEHOUSE_PACK}。`);
   casinoTradehouseModal();
   renderCasinoHub();
 }
