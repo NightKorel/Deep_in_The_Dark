@@ -9,6 +9,10 @@ const SHELTER_MAINTENANCE_FEE = 3; // 每次回避難所扣的維護費
 const POTION_MAX = 12;
 const POTION_REFILL_COST = 1; // 潛晶/瓶
 const POTION_HEAL_PERCENT = 0.30; // 補血藥回復比例（藥效強化增益可提升到0.45）
+// 補血藥「外敷」用法（第二層Boss戰後L研發出來、由 storyFlags.potionApplyUnlocked 解鎖）：
+// 不是當場回血，而是接下來數回合的持續回血（HoT）。從「下一回合開始」才回第一次，跟中毒/流血/持續回血技能同步結算。
+const POTION_HOT_PERCENT = 0.15; // 外敷：每回合回復最大血量比例（藥效強化時 ×1.5）
+const POTION_HOT_DURATION = 3;   // 外敷：持續回合數（15%×3＝總量45%，比直飲30%多、但延遲又怕被打斷，兩種用法各有取捨）
 
 // 升級費用：Lv1=10，之後每級 x1.5 無條件進位
 const UPGRADE_COST_BY_LEVEL = [0, 10, 15, 23, 35, 53];

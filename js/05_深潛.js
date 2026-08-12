@@ -406,6 +406,7 @@ function handleLayer1BossVictory() {
 function handleLayer2BossVictory() {
   let isFirstClear = !gameState.storyFlags.layer2Cleared;
   gameState.storyFlags.layer2Cleared = true; // 解鎖避難所賭場的條件之一（另一個是 metH）
+  gameState.storyFlags.potionApplyUnlocked = true; // 解鎖補血藥「外敷」用法（重打也保持解鎖）
   checkAchievements();
 
   if (!isFirstClear) {
@@ -417,6 +418,8 @@ function handleLayer2BossVictory() {
     { speaker: "L", text: "……成了。" },
     { speaker: "", text: "L 蹲下身，在崩塌的碎石與那東西守著的角落裡翻找，撿起幾樣還算完好的素材，仔細收好。" },
     { speaker: "L", text: "夠了。這些拿回去，我能做出幾瓶像樣的魔藥。" },
+    { speaker: "L", text: "還有個想法。補血藥不一定要一口灌下去——敷在傷口上，藥效能拖著慢慢滲，撐得比較久。" },
+    { speaker: "L", text: "回去我改一批新的。之後戰鬥裡你們自己選：急著保命就直飲，想撐久一點就外敷。" },
     { speaker: "K", text: "第二層……我們過了。" },
     { speaker: "L", text: "別高興太早。往下，只會更難走。" },
     { speaker: "L", text: "……但至少，路是通的。" },

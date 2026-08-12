@@ -25,6 +25,7 @@ let gameState = {
     boss2DoorShown: false, // 是否已經播過第二層Boss（巨岩蚺）門前的台詞
     metH: false, // 是否已經在節點賭場遇過H（解鎖避難所賭場的條件之一）
     layer2Cleared: false, // 是否已通關第二圈層（解鎖避難所賭場的條件之一）
+    potionApplyUnlocked: false, // 是否已解鎖補血藥「外敷」用法（第二層Boss戰後L研發出來的新藥）
   },
   bestiary: {}, // { 凝膠: true, ... } 是否已經遇過該種怪物
   discoveredNodeTypes: {}, // { monster: true, oddity: true, ... } 是否已經遇過該種節點類型（沒遇過顯示？？？）

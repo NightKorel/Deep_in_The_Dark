@@ -811,6 +811,23 @@ function battleDrinkPotion(casterId) {
   finishAllyAction();
 }
 
+// 補血藥「外敷」：不當場回血，改成接下來幾回合的持續回血（HoT），從「下一回合開始」才回第一次
+// （這回合的持續效果結算已經過了）。第二層Boss戰後由 storyFlags.potionApplyUnlocked 解鎖。
+function battleApplyPotion(casterId) {
+  if (!isCurrentActorsTurn(casterId)) return;
+  if (gameState.potions <= 0) return;
+  gameState.potions--;
+  let m = activeDive.party[casterId];
+  let hotPercent = activeDive.globalBuffs.includes("藥效強化") ? POTION_HOT_PERCENT * 1.5 : POTION_HOT_PERCENT;
+  let perTurn = Math.ceil(m.maxHp * hotPercent);
+  // 外敷是「刷新式」不是「疊加式」：重複外敷或身上已有持續回血時，取較高的每回合量並把回合數重置到滿
+  m.hotHealPerTurn = Math.max(m.hotHealPerTurn || 0, perTurn);
+  m.hotDuration = POTION_HOT_DURATION;
+  logBattle(`🩹 ${displayName(casterId)} 把補血藥敷上傷口，接下來 ${POTION_HOT_DURATION} 回合會持續回血（每回合約 +${perTurn}，下回合開始生效）。`);
+  flashUnit(casterId, "heal");
+  finishAllyAction();
+}
+
 // 使用攜帶的魔藥：不消耗回合（免費動作）、只能在自己回合用。用完該格變「沒有魔藥」。
 function battleUsePotion(casterId) {
   if (!isCurrentActorsTurn(casterId)) return;
@@ -1202,6 +1219,25 @@ function renderActionPanel(casterId) {
 
   let potionHealPercent = activeDive.globalBuffs.includes("藥效強化") ? 0.45 : POTION_HEAL_PERCENT;
 
+  // 補血藥按鈕：第二層Boss後解鎖「外敷」，就拆成「直飲／外敷」兩顆（共用同一份庫存）；還沒解鎖就只有一顆。
+  let potionDisabled = gameState.potions <= 0 ? "disabled" : "";
+  let potionButtons;
+  if (gameState.storyFlags.potionApplyUnlocked) {
+    let hotPercent = activeDive.globalBuffs.includes("藥效強化") ? POTION_HOT_PERCENT * 1.5 : POTION_HOT_PERCENT;
+    potionButtons = `
+      <button class="battle-btn" title="直飲：立刻回復最大血量的 ${Math.round(potionHealPercent * 100)}%" ${potionDisabled} onclick="battleDrinkPotion('${casterId}')">
+        直飲補血藥<span class="btn-sub">即回 ${Math.round(potionHealPercent * 100)}% · 剩 ${gameState.potions} 瓶</span>
+      </button>
+      <button class="battle-btn" title="外敷：接下來 ${POTION_HOT_DURATION} 回合，每回合回復最大血量的 ${Math.round(hotPercent * 100)}%（下回合開始生效）" ${potionDisabled} onclick="battleApplyPotion('${casterId}')">
+        外敷補血藥<span class="btn-sub">${POTION_HOT_DURATION} 回合共 ${Math.round(hotPercent * POTION_HOT_DURATION * 100)}% · 剩 ${gameState.potions} 瓶</span>
+      </button>`;
+  } else {
+    potionButtons = `
+      <button class="battle-btn" title="回復最大血量的 ${Math.round(potionHealPercent * 100)}%" ${potionDisabled} onclick="battleDrinkPotion('${casterId}')">
+        補血藥<span class="btn-sub">剩 ${gameState.potions} 瓶</span>
+      </button>`;
+  }
+
   // 魔藥格：帶了就顯示魔藥名（可點，使用不消耗回合、只能自己回合），用過或沒帶就顯示「沒有魔藥」
   let cp = m.carriedPotion;
   let magicPotionBtn;
@@ -1219,9 +1255,7 @@ function renderActionPanel(casterId) {
     <div class="battle-action-buttons">
       <button class="battle-btn" title="對單一敵人造成普通攻擊傷害" onclick="battleNormalAttack('${casterId}')">攻擊</button>
       ${skillButtons}
-      <button class="battle-btn" title="回復最大血量的${Math.round(potionHealPercent * 100)}%" ${gameState.potions <= 0 ? "disabled" : ""} onclick="battleDrinkPotion('${casterId}')">
-        補血藥<span class="btn-sub">剩 ${gameState.potions} 瓶</span>
-      </button>
+      ${potionButtons}
       ${magicPotionBtn}
       <button class="battle-btn" title="嘗試逃離戰鬥，成功率${Math.round(FLEE_SUCCESS_RATE * 100)}%，失敗會讓敵方立刻多行動一輪" ${(!activeBattle.allowFlee || aliveCount < 2) ? "disabled" : ""} onclick="battleFlee('${casterId}')">逃跑</button>
     </div>
