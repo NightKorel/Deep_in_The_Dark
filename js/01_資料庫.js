@@ -461,27 +461,36 @@ const LAYER_NODE_CONFIGS = { 1: LAYER1_NODE_CONFIG, 2: LAYER2_NODE_CONFIG };
 const REST_HEAL_PERCENT = 0.30;
 
 // ---------- 奇異地形 🔮（隨機抽一個） ----------
+// ===== 節點定位規則（🔮 奇異地形 vs ❔ 隨機事件，兩者在第2格等處二選一，別讓玩家只想選一種）=====
+// 🔮 奇異地形＝安全的「強化/補給站」：只給 buff／回血／爆擊等「當場變強或回血」的好處，
+//    幾乎零風險、且【不給潛晶/藥水/遺物】。玩家想補血或變強、又不想冒險時選它。
+// ❔ 隨機事件（見下方 RANDOM_EVENTS）＝有賺頭但有風險的「際遇」：給潛晶/藥水/遺物等戰利品，
+//    但可能受傷、被迫戰鬥、甚至空手。想要資源、敢賭一把時選它。
+// → 之後新增內容都照這個分工放，才能維持「求強度 vs 求資源」的取捨平衡。
 const ODDITY_EVENTS = [
   { id: "發光水池", name: "發光水池", desc: "一窪散發微光的水。看起來可以喝。", options: [
     { label: "喝下去", outcomes: [
-      { chance: 0.5, text: "水很清甜。感覺恢復了一些體力。", effect: { type: "heal-all-percent", value: 0.20 } },
-      { chance: 0.5, text: "水一入喉就覺得不對——苦澀刺鼻。", effect: { type: "damage-all-percent", value: 0.10 } },
+      { chance: 0.7, text: "水很清甜。一股暖流散開，傷口舒緩了不少。", effect: { type: "heal-all-percent", value: 0.20 } },
+      { chance: 0.3, text: "水帶著淡淡的礦味，喝下去也覺得舒服了些。", effect: { type: "heal-all-percent", value: 0.12 } },
     ] },
+    { label: "不喝", effect: { type: "noop" } },
   ] },
   { id: "嗡鳴晶簇", name: "嗡鳴晶簇", desc: "一簇發出低鳴的晶體從牆壁上長出來。靠近時你的手指在發麻。", options: [
     { label: "觸碰", text: "晶體的共鳴在你腦中激起了三道不同的回響。", effect: { type: "choose-one-of-three-buffs" } },
   ] },
   { id: "溫暖氣流", name: "溫暖氣流", desc: "一陣溫暖的風從地底吹上來。很舒服。", options: [
-    { label: "感受氣流", effect: { type: "heal-all-flat", value: 2 } },
+    { label: "感受氣流", text: "暖意滲進身體，緊繃的肌肉鬆了下來。", effect: { type: "heal-all-percent", value: 0.12 } },
   ] },
-  { id: "不穩定地面", name: "不穩定地面", desc: "腳下的地面在震動。", options: [
-    { label: "踏上去", outcomes: [
-      { chance: 0.5, text: "地面裂開了一小塊！碎石打中了你們。", effect: { type: "damage-all-flat", value: 3 } },
-      { chance: 0.5, text: "地面裂開了——裡面有東西在發光。", effect: { type: "find-crystal", range: [3, 5] } },
-    ] },
+  { id: "不穩定地面", name: "不穩定地面", desc: "腳下的地面傳來規律的微震，像是底下有什麼正順著你的呼吸回應。", options: [
+    { label: "穩住重心，感受它", text: "你順著震動調勻呼吸，一股力量沉進體內。", effect: { type: "random-buff" } },
+    { label: "小心繞開", effect: { type: "noop" } },
   ] },
   { id: "潛淵低語", name: "潛淵低語", desc: "空氣中有低沉的嗡鳴聲。不是語言，但你的身體在回應。", options: [
     { label: "聆聽", effect: { type: "random-member-crit-buff", value: 0.10 } },
+  ] },
+  { id: "靜滯結晶", name: "靜滯結晶", desc: "一塊半透明的結晶懸在半空，裡面的光流動得很慢，靠近時連時間都彷彿黏稠了起來。", options: [
+    { label: "汲取暖光 — 全隊回血", text: "溫熱的光注入身體，傷勢緩和了下來。", effect: { type: "heal-all-percent", value: 0.18 } },
+    { label: "引導鋒芒 — 一名隊員爆擊率上升", text: "光順著手臂爬上來，凝成一股銳氣。", effect: { type: "random-member-crit-buff", value: 0.10 } },
   ] },
 ];
 
