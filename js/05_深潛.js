@@ -243,7 +243,8 @@ function renderDiveScreen() {
     </button>`;
   }).join("");
 
-  let layerName = (LAYERS_META[layer] && LAYERS_META[layer].name) || "";
+  let meta = LAYERS_META[layer] || {};
+  let layerName = meta.name || "";
   showScreen(`
     <h2 class="screen-title">深潛 · 圈層 ${layer}${layerName ? "：" + layerName : ""}</h2>
     <div class="dive-progress">第 ${nodeIndex + 1} / ${depth} 格</div>
@@ -256,7 +257,7 @@ function renderDiveScreen() {
       <button class="action-btn" onclick="eatFoodAction()">🍲 食用料理</button>
       <button class="action-btn danger" onclick="retreatAction()">🚪 撤回避難所</button>
     </div>
-  `, { withTopbar: true });
+  `, { withTopbar: true, themeColor: meta.themeColor });
 }
 
 function afterNodeContentResolved() {

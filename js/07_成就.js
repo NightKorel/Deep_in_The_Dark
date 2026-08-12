@@ -15,7 +15,7 @@
 const ACHIEVEMENTS = [
   { id: "初次潛淵", name: "初次潛淵", icon: "🌊", desc: "第一次出發深潛。", hint: "第一次，總得有人先往黑裡跳。", relic: "初潛之勇", check: () => (gameState.stats.divesStarted || 0) >= 1 },
   { id: "重逢", name: "重逢", icon: "🧪", desc: "擊敗島鯨，救回失蹤的 L。", hint: "有人在很深的地方，等了很久。", relic: "重逢餘溫", check: () => !!gameState.storyFlags.lRescued },
-  { id: "海洋圖鑑", name: "海洋圖鑑", icon: "📖", desc: "見過第一層所有生物。", hint: "把海裡的每張臉，都認過一遍。", relic: "洋流羅盤", check: () => ["凝膠", "藍顎獸", "翅鱗", "眼藻", "島鯨"].every((m) => gameState.bestiary[m]) },
+  { id: "海洋圖鑑", name: "淺水圖鑑", icon: "📖", desc: "見過第一層所有生物。", hint: "把淺水裡的每張臉，都認過一遍。", relic: "洋流羅盤", check: () => ["凝膠", "藍顎獸", "翅鱗", "眼藻", "島鯨"].every((m) => gameState.bestiary[m]) },
   { id: "手腳夠快", name: "手腳夠快", icon: "🎁", desc: "在寶箱怪逃走前打倒牠一次。", hint: "禮物會跑，你得更快。", relic: "疾手之爪", check: () => (gameState.stats.mimicKills || 0) >= 1 },
   { id: "全身而退", name: "全身而退", icon: "🛡️", desc: "在沒有任何人倒地的情況下贏得一場戰鬥。", hint: "一滴都沒濺到身上。", relic: "無瑕之盾", check: () => (gameState.stats.flawlessWins || 0) >= 1 },
   { id: "深淵的滋味", name: "深淵的滋味", icon: "❄️", desc: "嘗過一次全隊倒下、被捲回避難所的滋味。", hint: "嚐過最苦的那一口，才記得住。", relic: "不熄餘燼", check: () => (gameState.stats.wipes || 0) >= 1 },

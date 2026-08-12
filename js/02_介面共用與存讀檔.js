@@ -129,11 +129,27 @@ function isSkillUnlocked(charId, skillId) {
 
 // ---------- 畫面切換 ----------
 
+// 把 #rrggbb 轉成 rgba(...) 字串（給主題色漸層用）。
+function hexToRgba(hex, a) {
+  let h = (hex || "").replace("#", "");
+  if (h.length !== 6) return `rgba(0,0,0,${a})`;
+  let r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 function showScreen(html, opts) {
   opts = opts || {};
-  document.getElementById("main-screen").innerHTML = html;
-  document.getElementById("main-screen").className = opts.withTopbar ? "with-topbar" : "";
+  let ms = document.getElementById("main-screen");
+  ms.innerHTML = html;
+  ms.className = opts.withTopbar ? "with-topbar" : "";
   document.getElementById("top-status-bar").classList.toggle("hidden", !opts.withTopbar);
+  // 圈層主題色背景：只有傳 themeColor 的畫面（深潛探索）才套一層沉穩的漸層，其餘畫面維持原本的黑底。
+  if (opts.themeColor) {
+    let c = opts.themeColor;
+    ms.style.backgroundImage = `linear-gradient(160deg, ${hexToRgba(c, 0.22)} 0%, ${hexToRgba(c, 0.07)} 42%, transparent 72%)`;
+  } else {
+    ms.style.backgroundImage = "";
+  }
   // 左上角選單(存讀檔/改名)一開始就要能用，不跟著withTopbar開關
   if (opts.withTopbar) updateTopStatusBar();
 }

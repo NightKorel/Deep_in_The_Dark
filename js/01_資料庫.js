@@ -423,9 +423,9 @@ const LAYER_BOSS = { 1: "島鯨", 2: "巨岩蚺", 3: "花尾" };
 const LAYER_MONSTER_POOLS = { 1: LAYER1_MONSTER_POOL, 2: LAYER2_MONSTER_POOL, 3: LAYER3_MONSTER_POOL };
 // 圈層基本資料：深潛系統與圈層選擇畫面共用。
 const LAYERS_META = {
-  1: { layer: 1, name: "海洋", subtitle: "第一圈層" },
-  2: { layer: 2, name: "乾燥岩洞地帶", subtitle: "第二圈層" },
-  3: { layer: 3, name: "風谷", subtitle: "第三圈層" },
+  1: { layer: 1, name: "淺水", subtitle: "第一圈層", themeColor: "#5aa9d6" }, // 淺藍
+  2: { layer: 2, name: "岩洞", subtitle: "第二圈層", themeColor: "#b08d57" }, // 土色
+  3: { layer: 3, name: "風谷", subtitle: "第三圈層", themeColor: "#7bab5e" }, // 草綠
 };
 const MAX_LAYER = 3;
 // （2026-08-12）納可拍板：選深層跳關「不再自動補償任何增益或遺物」，就單純跳關。舊的 SKIP_LAYER_*_COMP 已移除。
