@@ -96,6 +96,21 @@ body {
 .action-btn.danger { color: #ff7b72; border-color: #ff7b72; }
 .action-btn.danger:hover:not(:disabled) { background-color: #ff7b72; color: #0a0d11; }
 
+/* 作弊選單「跳過劇情」小晶片按鈕（圈層變多時橫排自動換行，不會像大顆按鈕那樣佔滿一行） */
+.cheat-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.cheat-chip {
+  background-color: transparent;
+  color: #8b949e;
+  border: 1px solid #3a3f4b;
+  padding: 5px 12px;
+  cursor: pointer;
+  border-radius: 999px;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+.cheat-chip:hover:not(:disabled) { border-color: #4fa8d8; color: #4fa8d8; }
+.cheat-chip:disabled { opacity: 0.4; cursor: default; color: #5b8a5b; border-color: #3a4b3a; }
+
 /* 出發圈層下拉選單 */
 .depart-layer-select {
   width: 100%;

@@ -245,31 +245,30 @@ function setPlayerColor(hex) {
 
 function openCheatModal() {
   toggleSettingsMenu();
-  let skipTutorialRow = gameState.storyFlags.introDone
-    ? `<p class="dim">新手教學已經跳過或走完了。</p>`
-    : `<button class="action-btn" onclick="cheatSkipTutorial()">跳過新手教學</button>`;
-  let completeLayer1Row = gameState.storyFlags.lRescued
-    ? `<p class="dim">第一圈層已經打完了。</p>`
-    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer1()">打完第一層（看結局劇情）</button>`;
-  let completeLayer2Row = gameState.storyFlags.layer2Cleared
-    ? `<p class="dim">第二圈層已經打完了。</p>`
-    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer2()">打完第二層 Boss（看結局劇情）</button>`;
-  let completeLayer3Row = gameState.storyFlags.layer3Cleared
-    ? `<p class="dim">第三圈層已經打完了。</p>`
-    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer3()">打完第三層 Boss（看結局劇情）</button>`;
+  // 「跳過劇情」做成一排小晶片按鈕，之後圈層變多只要往這個陣列加一項就好，版面自動排整齊（納可要求）。
+  // 已完成的顯示為灰色打勾、不可點；未完成的可點跳關。
+  let skipStages = [
+    { label: "新手教學", done: gameState.storyFlags.introDone, fn: "cheatSkipTutorial()" },
+    { label: "第一層後", done: gameState.storyFlags.lRescued, fn: "cheatCompleteLayer1()" },
+    { label: "第二層後", done: gameState.storyFlags.layer2Cleared, fn: "cheatCompleteLayer2()" },
+    { label: "第三層後", done: gameState.storyFlags.layer3Cleared, fn: "cheatCompleteLayer3()" },
+  ];
+  let skipChips = skipStages.map((s) => s.done
+    ? `<button class="cheat-chip" disabled title="已完成">${s.label} ✓</button>`
+    : `<button class="cheat-chip" onclick="${s.fn}">${s.label}</button>`
+  ).join("");
+
   let allMaxed = Object.keys(gameState.characters).every((id) => gameState.characters[id].level >= CHARACTERS[id].skillIds.length);
   let maxLevelRow = allMaxed
     ? `<p class="dim">全體角色已經是目前最高等級了。</p>`
-    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatMaxLevelAll()">全體角色升到目前最高等級</button>`;
+    : `<button class="action-btn" onclick="cheatMaxLevelAll()">全體角色升到目前最高等級</button>`;
   let unlockCasinoRow = isShelterCasinoUnlocked()
     ? `<p class="dim">避難所賭場已經解鎖了。</p>`
     : `<button class="action-btn" style="margin-top:8px;" onclick="cheatUnlockCasino()">解鎖避難所賭場（H）</button>`;
   openGenericModal("作弊", `
-    ${skipTutorialRow}
-    ${completeLayer1Row}
-    ${completeLayer2Row}
-    ${completeLayer3Row}
-    ${maxLevelRow}
+    <p class="dim" style="margin:0 0 6px;">跳過劇情：</p>
+    <div class="cheat-chip-row">${skipChips}</div>
+    <div style="margin-top:14px;">${maxLevelRow}</div>
     ${unlockCasinoRow}
     <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">關閉</button>
   `);
