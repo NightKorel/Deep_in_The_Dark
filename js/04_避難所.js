@@ -131,7 +131,7 @@ function confirmUpgrade(kind, charId) {
   showUpgradeList(kind);
 }
 
-// ---------- 家：煮飯／技能管理／整備出發／補充補血藥（改名移到左上角選單） ----------
+// ---------- 家：煮飯／技能管理／圖鑑／整備出發（補血藥補充已併入整備出發；改名在左上角選單） ----------
 
 function showHomeScreen() {
   showScreen(`
@@ -141,7 +141,6 @@ function showHomeScreen() {
       <div class="menu-item" onclick="showSkillManagementScreen()">📖 技能管理</div>
       <div class="menu-item" onclick="showCodexScreen()">📚 圖鑑</div>
       <div class="menu-item" onclick="showDepartScreen()">🎒 整備出發</div>
-      <div class="menu-item" onclick="showPotionRefillScreen()">🧪 補充補血藥</div>
     </div>
     <button class="action-btn secondary" onclick="showShelterScreen()">返回避難所</button>
   `, { withTopbar: true });
@@ -411,23 +410,7 @@ function toggleEquippedSkill(charId, skillId) {
 
 // 改名已經移到左上角選單(openRenameModal/confirmRenameModal，見02_介面共用與存讀檔.js)
 
-// ---- 補充補血藥 ----
-
-function showPotionRefillScreen() {
-  let autoNote = gameState.storyFlags.lRescued
-    ? `<p class="dim">L：「補血藥交給我。以後每次回到避難所，我都會幫你補滿，不用再花潛晶了。」</p>`
-    : "";
-  showScreen(`
-    <h2 class="screen-title">補充補血藥</h2>
-    <div class="card">
-      <p>目前 🧪 ${gameState.potions} / ${POTION_MAX} 瓶，每瓶 💎${POTION_REFILL_COST}。</p>
-      ${autoNote}
-      <button class="action-btn" ${gameState.potions >= POTION_MAX || gameState.crystal < POTION_REFILL_COST ? "disabled" : ""} onclick="buyPotion(1)">+1 瓶</button>
-      <button class="action-btn" ${gameState.potions >= POTION_MAX ? "disabled" : ""} onclick="buyPotion(POTION_MAX)">一鍵補滿</button>
-    </div>
-    <button class="action-btn secondary" onclick="showHomeScreen()">返回</button>
-  `, { withTopbar: true });
-}
+// ---- 補血藥購買（只用在整備出發、且僅限 L 救出前的花潛晶補充；救出後 L 免費補滿、不再顯示按鈕） ----
 
 function buyPotion(amount, onDone) {
   let need = Math.min(amount, POTION_MAX - gameState.potions);
@@ -436,7 +419,7 @@ function buyPotion(amount, onDone) {
   gameState.crystal -= affordable * POTION_REFILL_COST;
   gameState.potions += affordable;
   systemToast(`🧪 補充了 ${affordable} 瓶補血藥。`);
-  (onDone || showPotionRefillScreen)();
+  (onDone || showDepartScreen)();
 }
 
 // ---- 整備出發 ----
@@ -572,11 +555,13 @@ function showDepartScreen() {
     <p class="dim">出發前小隊會恢復到滿血滿狀態，技能次數也會全部回滿。</p>
     <div class="card">
       <strong>🧪 補血藥</strong>
-      <span class="dim">目前 ${gameState.potions} / ${POTION_MAX} 瓶，每瓶 💎${POTION_REFILL_COST}</span>
+      ${gameState.storyFlags.lRescued
+        ? `<span class="dim">L 每次出發前都會幫你補滿（目前 ${gameState.potions} / ${POTION_MAX} 瓶，免費）。</span>`
+        : `<span class="dim">目前 ${gameState.potions} / ${POTION_MAX} 瓶，每瓶 💎${POTION_REFILL_COST}</span>
       <div style="margin-top:8px;">
         <button class="action-btn" title="花費 💎${POTION_REFILL_COST} 補充1瓶" ${gameState.potions >= POTION_MAX || gameState.crystal < POTION_REFILL_COST ? "disabled" : ""} onclick="buyPotion(1, showDepartScreen)">+1 瓶</button>
         <button class="action-btn" title="花光潛晶把補血藥補到上限" ${gameState.potions >= POTION_MAX ? "disabled" : ""} onclick="buyPotion(POTION_MAX, showDepartScreen)">一鍵補滿</button>
-      </div>
+      </div>`}
     </div>
     <div class="card">
       <h3>料理背包</h3>
