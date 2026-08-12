@@ -18,8 +18,6 @@ const ACHIEVEMENTS = [
   { id: "小富翁", name: "小富翁", icon: "💎", desc: "潛晶一度累積達到 100。", check: () => (gameState.stats.maxCrystalSeen || 0) >= 100 },
   { id: "熟練者", name: "熟練者", icon: "⭐", desc: "讓任一角色達到 4 級。", check: () => Object.values(gameState.characters).some((c) => c.level >= 4) },
   { id: "精益求精", name: "精益求精", icon: "⚔️", desc: "把任一武器強化到 3 級。", check: () => Object.values(gameState.characters).some((c) => c.weaponLv >= 3) },
-  { id: "岩洞的盡頭", name: "岩洞的盡頭", icon: "🐍", desc: "擊敗巨岩蚺，打通第二圈層。", check: () => !!gameState.storyFlags.layer2Cleared },
-  { id: "岩洞圖鑑", name: "岩洞圖鑑", icon: "🦂", desc: "見過第二層所有生物。", check: () => ["刺螯", "膜翼", "垂垂耳", "尖嘴鼠", "巨岩蚺"].every((m) => gameState.bestiary[m]) },
 ];
 
 // 統一檢查：更新潛晶峰值，然後把所有「已達成但還沒解鎖」的成就解鎖並跳通知。
