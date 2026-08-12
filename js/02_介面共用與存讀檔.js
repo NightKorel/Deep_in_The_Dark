@@ -877,3 +877,31 @@ function initGame() {
 }
 
 window.addEventListener("DOMContentLoaded", initGame);
+
+// ---------- 長按連續觸發（納可要求：下注/數量加減這類按鈕，按住不放就連發） ----------
+// 用事件委派：class 含 hold-repeat 的按鈕，按一下＝觸發一次，按住＝停頓 400ms 後每 90ms 連發。
+// 連發呼叫「按下當下快取的 onclick 函式引用」，所以就算按鈕所在面板重繪換了節點，連發仍持續有效；
+// 數值邊界由被呼叫的函式自己負責（例如 liarSetSel 會把數量/點數夾在合理範圍），這裡不重複判斷。
+// 之後任何會連點的加減按鈕，只要加上 class "hold-repeat" 就自動有長按，不用再各自處理。
+(function setupHoldRepeat() {
+  let delayTimer = null, repeatTimer = null;
+  function stop() { clearTimeout(delayTimer); clearInterval(repeatTimer); delayTimer = repeatTimer = null; }
+  function start(e) {
+    let btn = e.target.closest && e.target.closest(".hold-repeat");
+    if (!btn || btn.disabled) return;
+    let action = btn.onclick;
+    if (typeof action !== "function") return;
+    stop();
+    action.call(btn, e); // 立即觸發一次（＝單擊效果）
+    delayTimer = setTimeout(() => {
+      repeatTimer = setInterval(() => {
+        if (btn.disabled) { stop(); return; }
+        action.call(btn, e);
+      }, 90);
+    }, 400);
+    if (e.cancelable) e.preventDefault(); // 阻止原生 click 再觸發一次，也避免長按選字/拖曳
+  }
+  document.addEventListener("mousedown", start);
+  document.addEventListener("touchstart", start, { passive: false });
+  ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((ev) => document.addEventListener(ev, stop));
+})();

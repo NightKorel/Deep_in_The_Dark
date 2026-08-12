@@ -752,14 +752,14 @@ function liarRender() {
     <div class="card ld-controls">
       <div class="ld-picker">
         <div class="ld-stepper"><span class="dim">數量</span>
-          <button class="bet-quick-btn" onclick="liarAdjQty(-1)">－</button>
+          <button class="bet-quick-btn hold-repeat" onclick="liarAdjQty(-1)">－</button>
           <b>${s.selQty}</b>
-          <button class="bet-quick-btn" onclick="liarAdjQty(1)">＋</button>
+          <button class="bet-quick-btn hold-repeat" onclick="liarAdjQty(1)">＋</button>
         </div>
         <div class="ld-stepper"><span class="dim">點數</span>
-          <button class="bet-quick-btn" onclick="liarAdjFace(-1)">－</button>
+          <button class="bet-quick-btn hold-repeat" onclick="liarAdjFace(-1)">－</button>
           <b class="ld-die-inline">${DICE_FACES[s.selFace]}</b>
-          <button class="bet-quick-btn" onclick="liarAdjFace(1)">＋</button>
+          <button class="bet-quick-btn hold-repeat" onclick="liarAdjFace(1)">＋</button>
         </div>
       </div>
       <button class="action-btn ${canBid ? "" : "secondary"}" ${canBid ? "" : "disabled"} onclick="liarPlayerBid()">📣 喊價：至少 ${s.selQty} 個 ${DICE_FACES[s.selFace]}</button>
