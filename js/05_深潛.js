@@ -21,10 +21,12 @@ function getLayerMonsterPool(layer) {
 function getLayerBoss(layer) {
   return LAYER_BOSS[layer] || "島鯨";
 }
-// 目前已解鎖、可作為出發起點的圈層清單。第一層永遠可選；通關第一層（救出 L）後解鎖第二層。
+// 目前已解鎖、可作為出發起點的圈層清單。第一層永遠可選；通關第一層（救出 L）後解鎖第二層；
+// 通關第二層（layer2Cleared）後解鎖第三層。
 function getUnlockedLayers() {
   let layers = [1];
   if (gameState.storyFlags.firstLayerCleared) layers.push(2);
+  if (gameState.storyFlags.layer2Cleared) layers.push(3);
   return layers;
 }
 
@@ -207,6 +209,19 @@ function renderDiveScreen() {
     ], renderDiveScreen, { id: "第二層Boss門前", title: "第二圈層・Boss 門前", order: 30 });
     return;
   }
+  // 第三層 Boss 門前（花尾）第一次抵達
+  if (nodeIndex === depth - 1 && layer === 3 && !gameState.storyFlags.boss3DoorShown) {
+    gameState.storyFlags.boss3DoorShown = true;
+    playDialogue([
+      { speaker: "", text: "前方的風忽然停了。整片風谷安靜得不自然，連草都不敢動。" },
+      { speaker: "V", text: "……前面有東西。很大。" },
+      { speaker: "L", text: "小心牠的尾羽。我在遠處瞥過一眼——那紋路會讓人看到出神，別直視太久。" },
+      { speaker: "K", text: "看一眼就出神？那我閉著眼睛打行不行。" },
+      { speaker: "L", text: "行的話我第一個學你。" },
+      { speaker: "K", text: `${displayName("主角")}，穩住陣腳。這一關過了，風谷就是我們的了。` },
+    ], renderDiveScreen, { id: "第三層Boss門前", title: "第三圈層・Boss 門前", order: 45 });
+    return;
+  }
 
   // 第一次以完整隊伍面對選路時的教學提示
   let forkHintHtml = "";
@@ -338,6 +353,7 @@ function handleBossBattleResult(result) {
 
 function handleBossVictory() {
   let layer = activeDive ? activeDive.layer : 1;
+  if (layer === 3) return handleLayer3BossVictory();
   if (layer === 2) return handleLayer2BossVictory();
   return handleLayer1BossVictory();
 }
@@ -416,6 +432,32 @@ function handleLayer2BossVictory() {
   ], () => applyShelterReturn("boss"), { id: "第二層結局", title: "第二圈層・巨岩蚺之後", order: 40 });
 }
 
+// 第三層 Boss（花尾）勝利。設 layer3Cleared 旗標；首通播一段風谷戰後收尾。
+// ⚠️ 批次②「K 撿到怪東西 → 開盒子 → K 消失」的大劇情之後再從這裡接（見 設計文件/後續圈層規劃.txt、第四層規劃.txt）；
+//    現在先做乾淨的戰後收尾，別跟批次②衝突。
+function handleLayer3BossVictory() {
+  let isFirstClear = !gameState.storyFlags.layer3Cleared;
+  gameState.storyFlags.layer3Cleared = true;
+  checkAchievements();
+
+  if (!isFirstClear) {
+    applyShelterReturn("boss");
+    return;
+  }
+  playDialogue([
+    { speaker: "", text: "花尾的尾羽緩緩闔上，那些像眼睛的紋路一個接一個黯了下去。牠龐大的身體歪向一邊，沒入風谷的草浪裡。" },
+    { speaker: "", text: "風重新流動起來，剛才那股令人頭暈的靜默散了。" },
+    { speaker: "K", text: "呼……剛剛那尾巴一張開，我腦子就一片空白，差點對著 V 揮下去。" },
+    { speaker: "V", text: "……你揮了。我閃開了。" },
+    { speaker: "K", text: "欸，別記這種帳啊。" },
+    { speaker: "", text: "L 蹲在花尾倒下的地方，撥開草叢採了些碧綠的翎羽和絨毛，仔細收進袋子。" },
+    { speaker: "L", text: "這裡的東西比下面兩層都難得。碧翎、巢絨……夠我試幾種新藥了。" },
+    { speaker: "L", text: "風谷過了。再往下……我沒來過。" },
+    { speaker: "K", text: "那就一步一步走。反正我們四個一直都是這麼過來的。" },
+    { speaker: "", text: "四個人在草浪裡站了一會，然後轉身，往回程的路走去。" },
+  ], () => applyShelterReturn("boss"), { id: "第三層結局", title: "第三圈層・花尾之後", order: 50 });
+}
+
 // 作弊共用：清掉殘留的對話框覆蓋層、確保過了新手教學、把第一層路上只播一次的教學/劇情標記成看過
 // （避免之後真的出征時，在L已入隊狀態下又跳出第一層的開場白/岔路/意圖/Boss門前劇情，跟現況矛盾）。
 function cheatPrepMarkLayer1Seen() {
@@ -463,6 +505,24 @@ function cheatCompleteLayer2() {
     return;
   }
   handleLayer2BossVictory();
+}
+
+// 作弊：打完第三層 Boss（花尾）——把第一二層前置一次補齊（不重播前面劇情），再播花尾戰後收尾。
+function cheatCompleteLayer3() {
+  cheatPrepMarkLayer1Seen();
+  gameState.storyFlags.firstLayerCleared = true;
+  gameState.storyFlags.lRescued = true;
+  gameState.storyFlags.boss2DoorShown = true;
+  gameState.storyFlags.boss3DoorShown = true;
+  gameState.storyFlags.layer2Cleared = true;
+  gameState.storyFlags.potionApplyUnlocked = true;
+  syncLRoster();
+  if (gameState.storyFlags.layer3Cleared) {
+    showShelterScreen();
+    systemToast("第三圈層已經打完過了。");
+    return;
+  }
+  handleLayer3BossVictory();
 }
 
 function applyBattleRewards(result) {

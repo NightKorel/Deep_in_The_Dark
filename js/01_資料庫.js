@@ -416,16 +416,18 @@ const MAX_ENEMIES_ON_FIELD = 4;
 // 菁英節點（2026-08-12 納可拍板改成隨機）：一樣隨機抽2~3隻、整組菁英化，不再用固定配方（舊的 ENEMY_GROUPS_* 已移除）。
 const LAYER1_MONSTER_POOL = ["凝膠", "藍顎獸", "翅鱗", "眼藻"];
 const LAYER2_MONSTER_POOL = ["刺螯", "膜翼", "垂垂耳", "尖嘴鼠"];
+const LAYER3_MONSTER_POOL = ["擬巢怪", "掠禽", "青羽", "枝角翎"];
 
 // 圈層對應的 Boss 與各圈層的怪物池，讓深潛系統依 activeDive.layer 取用（見 05_深潛.js 的 getLayerXxx）。
-const LAYER_BOSS = { 1: "島鯨", 2: "巨岩蚺" };
-const LAYER_MONSTER_POOLS = { 1: LAYER1_MONSTER_POOL, 2: LAYER2_MONSTER_POOL };
-// 圈層基本資料：目前兩層，深潛系統與圈層選擇畫面共用。
+const LAYER_BOSS = { 1: "島鯨", 2: "巨岩蚺", 3: "花尾" };
+const LAYER_MONSTER_POOLS = { 1: LAYER1_MONSTER_POOL, 2: LAYER2_MONSTER_POOL, 3: LAYER3_MONSTER_POOL };
+// 圈層基本資料：深潛系統與圈層選擇畫面共用。
 const LAYERS_META = {
   1: { layer: 1, name: "海洋", subtitle: "第一圈層" },
   2: { layer: 2, name: "乾燥岩洞地帶", subtitle: "第二圈層" },
+  3: { layer: 3, name: "風谷", subtitle: "第三圈層" },
 };
-const MAX_LAYER = 2;
+const MAX_LAYER = 3;
 // （2026-08-12）納可拍板：選深層跳關「不再自動補償任何增益或遺物」，就單純跳關。舊的 SKIP_LAYER_*_COMP 已移除。
 const MIMIC_AMBUSH_CHANCE = 0.05; // 一般小怪戰鬥額外混入寶箱怪的機率（不佔原本2~3隻的名額，是多加的）
 
@@ -438,10 +440,10 @@ const CRYSTAL_DROP = {
   Boss: [12, 18],
 };
 // 圈層獎勵倍率：越深的圈層敵人越難，潛晶與經驗小幅上調，讓後期好賺一點；刻意只加一點點，別讓賭場以外的經濟膨脹太快。
-const LAYER_REWARD_MULT = { 1: 1, 2: 1.25 };
+const LAYER_REWARD_MULT = { 1: 1, 2: 1.25, 3: 1.5 };
 // 探索類（隨機事件／奇異地形／寶藏）撿到的潛晶，越深的圈層給越多。刻意比戰鬥倍率(1.25)更明顯一點，
 // 讓「往更深處探索」本身就有回報；但一樣壓在合理範圍，別把玩家養太肥。
-const LAYER_FIND_MULT = { 1: 1, 2: 1.5 };
+const LAYER_FIND_MULT = { 1: 1, 2: 1.5, 3: 2 };
 // 混戰中打死寶箱怪的額外獎勵（疊加在原本的戰鬥獎勵之上）：50%機率潛晶大獎，50%機率潛晶小獎+1個隨機遺物
 const MIMIC_BONUS_CRYSTAL_BIG = [8, 12];
 const MIMIC_BONUS_CRYSTAL_SMALL = [4, 6];
@@ -503,7 +505,23 @@ const LAYER2_NODE_CONFIG = [
   { options: ["boss"] },                    // 第10格：固定（巨岩蚺）
 ];
 const LAYER2_DEPTH = LAYER2_NODE_CONFIG.length;
-const LAYER_NODE_CONFIGS = { 1: LAYER1_NODE_CONFIG, 2: LAYER2_NODE_CONFIG };
+
+// 第三圈層節點配置（10 格，結構比照第一二層；賭場🎲放中後段）。
+// 註：第四層起才改成「帶隨機性」的動態節點（見 設計文件/第四層規劃.txt）；第三層仍是固定配置。
+const LAYER3_NODE_CONFIG = [
+  { options: ["monster"] },                  // 第1格：單選，強制戰鬥
+  { options: ["oddity", "event"] },          // 第2格
+  { options: ["monster", "treasure"] },      // 第3格
+  { options: ["rest", "cost_exchange"] },    // 第4格
+  { options: ["monster"] },                  // 第5格：單選，強制戰鬥
+  { options: ["shop", "gamble"] },           // 第6格：商人 or 神秘賭局
+  { options: ["rest", "monster", "elite"] }, // 第7格：三選一
+  { options: ["event", "cost_exchange"] },   // 第8格
+  { options: ["treasure", "gamble"] },       // 第9格：寶藏 or 神秘賭局
+  { options: ["boss"] },                     // 第10格：固定（花尾）
+];
+const LAYER3_DEPTH = LAYER3_NODE_CONFIG.length;
+const LAYER_NODE_CONFIGS = { 1: LAYER1_NODE_CONFIG, 2: LAYER2_NODE_CONFIG, 3: LAYER3_NODE_CONFIG };
 
 // ---------- 休息點 ----------
 const REST_HEAL_PERCENT = 0.30;

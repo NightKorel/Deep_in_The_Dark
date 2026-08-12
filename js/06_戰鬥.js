@@ -1326,6 +1326,8 @@ function renderBattleScreen(actingAllyId) {
     }
     if (e.poisonDuration > 0) statusHtml += statusIconHtml(`🟣`, `中毒：自身回復（吸血/自癒）減半，剩${e.poisonDuration}回合`);
     if (e.stunTurns > 0) statusHtml += statusIconHtml(`🫨`, `震懾：無法行動，剩${e.stunTurns}回合`);
+    if (e.confuseTurns > 0) statusHtml += statusIconHtml(`😵‍💫`, `混亂：這隻怪下次行動會胡亂出手（可能打到自己人），剩${e.confuseTurns}回合`);
+    if (e.chargeReady) statusHtml += statusIconHtml(`⚡蓄勢`, `蓄勢：下次攻擊傷害提升`);
     if (e.shield > 0) statusHtml += statusIconHtml(`🛡️${e.shield}`, `護盾：可吸收${e.shield}點傷害`);
     if (e.dodgeActive) {
       let label = e.dodgeActive.permanent ? "∞" : "×1";
@@ -1358,6 +1360,9 @@ function renderBattleScreen(actingAllyId) {
     }
     if (m.stunTurns > 0) {
       statusHtml += statusIconHtml(`🫨`, `震懾：無法行動，剩${m.stunTurns}回合`);
+    }
+    if (m.confuseTurns > 0) {
+      statusHtml += statusIconHtml(`😵‍💫`, `混亂：這回合會自動胡亂行動（可能打到隊友或自己），剩${m.confuseTurns}回合`);
     }
     if (m.guardActive) {
       statusHtml += statusIconHtml("🛡️格擋", `格擋中：受到的傷害-${Math.round(GUARD_DAMAGE_REDUCTION * 100)}%，被攻擊命中一次後解除`);

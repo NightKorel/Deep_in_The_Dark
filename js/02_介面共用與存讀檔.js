@@ -23,8 +23,10 @@ let gameState = {
     intentHintShown: false, // 是否已經播過第一次意圖圖示提示
     bossDoorShown: false, // 是否已經播過第一層Boss門前K的完整台詞
     boss2DoorShown: false, // 是否已經播過第二層Boss（巨岩蚺）門前的台詞
+    boss3DoorShown: false, // 是否已經播過第三層Boss（花尾）門前的台詞
     metH: false, // 是否已經在節點賭場遇過H（解鎖避難所賭場的條件之一）
     layer2Cleared: false, // 是否已通關第二圈層（解鎖避難所賭場的條件之一）
+    layer3Cleared: false, // 是否已通關第三圈層（風谷）
     potionApplyUnlocked: false, // 是否已解鎖補血藥「外敷」用法（第二層Boss戰後L研發出來的新藥）
     firstRelicSeen: false, // 是否已經播過「第一次拿到遺物時 K 解釋潛淵怪現象」的台詞（只播一次）
   },
@@ -252,6 +254,9 @@ function openCheatModal() {
   let completeLayer2Row = gameState.storyFlags.layer2Cleared
     ? `<p class="dim">第二圈層已經打完了。</p>`
     : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer2()">打完第二層 Boss（看結局劇情）</button>`;
+  let completeLayer3Row = gameState.storyFlags.layer3Cleared
+    ? `<p class="dim">第三圈層已經打完了。</p>`
+    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer3()">打完第三層 Boss（看結局劇情）</button>`;
   let allMaxed = Object.keys(gameState.characters).every((id) => gameState.characters[id].level >= CHARACTERS[id].skillIds.length);
   let maxLevelRow = allMaxed
     ? `<p class="dim">全體角色已經是目前最高等級了。</p>`
@@ -263,6 +268,7 @@ function openCheatModal() {
     ${skipTutorialRow}
     ${completeLayer1Row}
     ${completeLayer2Row}
+    ${completeLayer3Row}
     ${maxLevelRow}
     ${unlockCasinoRow}
     <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">關閉</button>
