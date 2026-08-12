@@ -96,6 +96,21 @@ body {
 .action-btn.danger { color: #ff7b72; border-color: #ff7b72; }
 .action-btn.danger:hover:not(:disabled) { background-color: #ff7b72; color: #0a0d11; }
 
+/* 出發圈層下拉選單 */
+.depart-layer-select {
+  width: 100%;
+  background: #1a1d24;
+  color: #e6edf3;
+  border: 1px solid #3a3f4b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 15px;
+  cursor: pointer;
+  color-scheme: dark;
+}
+.depart-layer-select:focus { outline: none; border-color: #4fa8d8; box-shadow: 0 0 8px rgba(79, 168, 216, 0.3); }
+.depart-layer-select option { background: #1a1d24; color: #e6edf3; }
+
 /* 主畫面容器 */
 #main-screen {
   min-height: 100vh;

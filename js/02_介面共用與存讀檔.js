@@ -48,6 +48,7 @@ let gameState = {
   }, // 出征前最多裝備4個技能，深潛中不可更換
   foodAssignment: { 主角: null, K: null, V: null, L: null }, // 每個角色目前分配到的攜帶料理({dishId,rare}或null)，沒吃掉的話下次出征會繼續帶著，不用重新分配
   potionAssignment: { 主角: null, K: null, V: null, L: null }, // 每個角色攜帶的魔藥({potionId,rare}或null)，跟料理各自獨立一格；沒用掉下次出征繼續帶
+  lastDepartLayer: 1, // 出發畫面上次選的圈層，下次進來預設帶出這個（下拉選單記住選擇用）
   settings: {
     autoTargetSingleEnemy: true, // 敵方只剩1隻時，普攻/單體技能自動選定目標、不用手動點
   },
@@ -230,8 +231,11 @@ function openCheatModal() {
     ? `<p class="dim">新手教學已經跳過或走完了。</p>`
     : `<button class="action-btn" onclick="cheatSkipTutorial()">跳過新手教學</button>`;
   let completeLayer1Row = gameState.storyFlags.lRescued
-    ? `<p class="dim">第一圈層已經通關了。</p>`
-    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer1()">通關第一圈層(L入隊)</button>`;
+    ? `<p class="dim">第一圈層已經打完了。</p>`
+    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer1()">打完第一層（看結局劇情）</button>`;
+  let completeLayer2Row = gameState.storyFlags.layer2Cleared
+    ? `<p class="dim">第二圈層已經打完了。</p>`
+    : `<button class="action-btn" style="margin-top:8px;" onclick="cheatCompleteLayer2()">打完第二層 Boss（看結局劇情）</button>`;
   let allMaxed = Object.keys(gameState.characters).every((id) => gameState.characters[id].level >= CHARACTERS[id].skillIds.length);
   let maxLevelRow = allMaxed
     ? `<p class="dim">全體角色已經是目前最高等級了。</p>`
@@ -242,6 +246,7 @@ function openCheatModal() {
   openGenericModal("作弊", `
     ${skipTutorialRow}
     ${completeLayer1Row}
+    ${completeLayer2Row}
     ${maxLevelRow}
     <button class="action-btn" style="margin-top:8px;" onclick="cheatTestLayer2Battle()">測試第二層小怪戰鬥</button>
     <button class="action-btn" style="margin-top:8px;" onclick="cheatTestGambleNode()">測試賭場節點（賭潛晶）</button>
@@ -453,6 +458,7 @@ function collectSaveData() {
     equippedSkills: gameState.equippedSkills,
     foodAssignment: gameState.foodAssignment,
     potionAssignment: gameState.potionAssignment,
+    lastDepartLayer: gameState.lastDepartLayer,
     settings: gameState.settings,
     achievements: gameState.achievements,
     stats: gameState.stats,
@@ -660,6 +666,12 @@ function applySaveData(data) {
         let validIds = list.filter((skillId) => SKILLS[skillId] && SKILLS[skillId].owner === id);
         if (validIds.length > 0) gameState.equippedSkills[id] = validIds.slice(0, 4);
       });
+    }
+  } catch (e) {}
+
+  try {
+    if (typeof data.lastDepartLayer === "number" && data.lastDepartLayer >= 1) {
+      gameState.lastDepartLayer = Math.round(data.lastDepartLayer);
     }
   } catch (e) {}
 

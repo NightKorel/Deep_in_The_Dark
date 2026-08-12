@@ -590,22 +590,46 @@ function showDepartScreen() {
   `, { withTopbar: true });
 }
 
-// 出發圈層選擇：只有第一層時直接一顆出發鈕；解鎖第二層後可選起點（選較深圈層＝略過前面層，附補償說明）。
+// 出發圈層選擇：只有第一層時直接一顆出發鈕；解鎖第二層後用「下拉選單」選起點（會記住上次的選擇）。
+// 選較深圈層＝略過前面層，下方即時顯示補償說明。
 function departLayerChoiceHtml() {
   let unlocked = getUnlockedLayers();
   if (unlocked.length <= 1) {
-    return `<button class="action-btn" onclick="confirmDepart(1)">🚪 出發，深潛第一圈層</button>`;
+    let meta = LAYERS_META[1] || { name: "", subtitle: "第一圈層" };
+    return `<button class="action-btn" onclick="confirmDepart(1)">🚪 出發，深潛${meta.subtitle}：${meta.name}</button>`;
   }
+  // 記住上次選的圈層；若沒紀錄或該層已不可選，退回第一個可選的
+  let last = gameState.lastDepartLayer;
+  if (!unlocked.includes(last)) last = unlocked[0];
+  let selMeta = LAYERS_META[last] || { name: "", subtitle: `第${last}圈層` };
+  let skipInfo = last > 1
+    ? `<p class="dim">選 ${selMeta.subtitle}＝略過前 ${last - 1} 層：補償 ${(last - 1) * SKIP_LAYER_BUFF_COMP} 個隨機增益＋${(last - 1) * SKIP_LAYER_RELIC_COMP} 個隨機遺物，但略過那些層的經驗、潛晶、食材都拿不到。</p>`
+    : `<p class="dim">從第一層開始，完整拿到每一層的收穫。</p>`;
+  let options = unlocked.map((ly) => {
+    let meta = LAYERS_META[ly] || { name: "", subtitle: `第${ly}圈層` };
+    return `<option value="${ly}"${ly === last ? " selected" : ""}>${meta.subtitle}：${meta.name}</option>`;
+  }).join("");
   return `<div class="card">
     <h3>選擇出發的圈層</h3>
-    <p class="dim">已打通的路線留下了捷徑，可以直接從較深的圈層出發。選較深圈層＝略過前面的圈層：
-      每略過一層補償 ${SKIP_LAYER_BUFF_COMP} 個隨機增益＋${SKIP_LAYER_RELIC_COMP} 個隨機遺物，但略過那層的經驗、潛晶、食材都不會拿到。</p>
-    ${unlocked.map((ly) => {
-      let meta = LAYERS_META[ly] || { name: "", subtitle: `第${ly}圈層` };
-      let skipNote = ly > 1 ? `<span class="dim">（略過前 ${ly - 1} 層，補償 ${(ly - 1) * SKIP_LAYER_BUFF_COMP} 增益＋${(ly - 1) * SKIP_LAYER_RELIC_COMP} 遺物）</span>` : "";
-      return `<button class="action-btn" style="margin-top:8px;" onclick="confirmDepart(${ly})">🚪 深潛 ${meta.subtitle}：${meta.name} ${skipNote}</button>`;
-    }).join("")}
+    <p class="dim">已打通的路線留下了捷徑，可以直接從較深的圈層出發。</p>
+    <select id="depart-layer-select" class="depart-layer-select" onchange="onDepartLayerChange(this.value)">
+      ${options}
+    </select>
+    ${skipInfo}
+    <button class="action-btn" style="margin-top:12px;" onclick="confirmDepartFromSelect()">🚪 出發深潛</button>
   </div>`;
+}
+
+// 下拉選單改變：記住選擇並重繪（讓下方的略過補償說明跟著更新）
+function onDepartLayerChange(val) {
+  gameState.lastDepartLayer = parseInt(val, 10) || 1;
+  showDepartScreen();
+}
+
+function confirmDepartFromSelect() {
+  let sel = document.getElementById("depart-layer-select");
+  let ly = sel ? (parseInt(sel.value, 10) || 1) : (gameState.lastDepartLayer || 1);
+  confirmDepart(ly);
 }
 
 function selectDepartFood(dishId, rare) {
@@ -648,6 +672,7 @@ function unassignDepartPotion(charId) {
 
 function confirmDepart(startLayer) {
   startLayer = startLayer || 1;
+  gameState.lastDepartLayer = startLayer; // 記住這次選的圈層，下次出發預設帶出來
   let choice = gameState.foodAssignment || {};
 
   // 扣掉這次帶走的料理庫存（沒吃掉的話回避難所會還回來、分配也會繼續保留），一般/稀有各自扣自己的

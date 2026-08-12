@@ -423,31 +423,53 @@ function handleLayer2BossVictory() {
   ], () => applyShelterReturn("boss"));
 }
 
-// 作弊：直接跳到「第一圈層已通關、L已救出入隊」的狀態，不用真的走10格打Boss
-function cheatCompleteLayer1() {
+// 作弊共用：清掉殘留的對話框覆蓋層、確保過了新手教學、把第一層路上只播一次的教學/劇情標記成看過
+// （避免之後真的出征時，在L已入隊狀態下又跳出第一層的開場白/岔路/意圖/Boss門前劇情，跟現況矛盾）。
+function cheatPrepMarkLayer1Seen() {
   closeGenericModal();
   dialogueQueue = [];
   dialogueOnComplete = null;
   document.getElementById("dialogue-overlay").classList.add("hidden");
   activeDive = null;
-
   if (!gameState.storyFlags.introDone) {
     gameState.bestiary.凝膠 = true;
     gameState.storyFlags.introDone = true;
     gameState.potions = 3;
   }
-  // 既然直接跳到「已通關」，第一圈層路上那些只播一次的劇情/教學提示也要一併標記成看過，
-  // 不然之後玩家真的出征時，會在L已經入隊的狀態下又看到「K的第一次出征開場白」「岔路/意圖教學」，
-  // 甚至Boss門前那段「不確定L還在不在裡面」的劇情——跟已經救出來的現況矛盾，很奇怪。
   gameState.storyFlags.firstDiveStarted = true;
   gameState.storyFlags.forkHintShown = true;
   gameState.storyFlags.intentHintShown = true;
   gameState.storyFlags.bossDoorShown = true;
+  // 墊一點潛晶，避免回避難所時因維護費不足誤觸「工坊停擺」提示，干擾看劇情
+  if (gameState.crystal < SHELTER_MAINTENANCE_FEE) gameState.crystal = SHELTER_MAINTENANCE_FEE;
+}
+
+// 作弊：打完第一層——播放島鯨戰後「救出 L」的完整結局劇情，再回避難所（方便驗證這段劇情）。
+function cheatCompleteLayer1() {
+  cheatPrepMarkLayer1Seen();
+  if (gameState.storyFlags.lRescued) {
+    showShelterScreen();
+    systemToast("第一圈層已經打完過了。");
+    return;
+  }
+  // 不預先設 lRescued，交給 handleLayer1BossVictory 播完救援劇情後才設，這樣劇情才會播出來
+  handleLayer1BossVictory();
+}
+
+// 作弊：打完第二層 Boss——先把第一層前置補齊（不重播第一層劇情），再播巨岩蚺戰後的結局劇情。
+function cheatCompleteLayer2() {
+  cheatPrepMarkLayer1Seen();
+  // 第二層前置：第一層必須先通關（L 已入隊）。這裡直接補齊、不重播第一層劇情。
   gameState.storyFlags.firstLayerCleared = true;
   gameState.storyFlags.lRescued = true;
+  gameState.storyFlags.boss2DoorShown = true;
   syncLRoster();
-  showShelterScreen();
-  systemToast("已通關第一圈層，L已加入隊伍。");
+  if (gameState.storyFlags.layer2Cleared) {
+    showShelterScreen();
+    systemToast("第二圈層已經打完過了。");
+    return;
+  }
+  handleLayer2BossVictory();
 }
 
 function applyBattleRewards(result) {
