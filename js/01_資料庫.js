@@ -353,23 +353,15 @@ const ELITE_HP_MULT = 1.5; // 無條件進位
 const ELITE_DMG_MULT = 1.3; // 無條件進位
 const MAX_ENEMIES_ON_FIELD = 4;
 
-// 敵人組合（第一圈層）
-// 一般小怪節點不用固定組合表，改成每次隨機決定2或3隻、從四種小怪不重複抽選（見05_深潛.js的generateRandomMonsterGroup）。
-// 菁英節點是特別設計的固定配方，不走隨機。
+// 敵人組合
+// 小怪節點：每次隨機決定2或3隻、從當層怪物池不重複抽選（見05_深潛.js的generateRandomMonsterGroup）。
+// 菁英節點（2026-08-12 納可拍板改成隨機）：一樣隨機抽2~3隻、整組菁英化，不再用固定配方（舊的 ENEMY_GROUPS_* 已移除）。
 const LAYER1_MONSTER_POOL = ["凝膠", "藍顎獸", "翅鱗", "眼藻"];
 const LAYER2_MONSTER_POOL = ["刺螯", "膜翼", "垂垂耳", "尖嘴鼠"];
-const ENEMY_GROUPS_LAYER1 = {
-  菁英: [["藍顎獸", "眼藻"]],
-};
-// 第二層菁英：垂垂耳（高輸出打手）＋膜翼（吸血自保＋聲波控場），一個猛一個黏，沿用第一層的菁英化倍率（×1.5血/×1.3傷）。
-const ENEMY_GROUPS_LAYER2 = {
-  菁英: [["垂垂耳", "膜翼"]],
-};
 
-// 圈層對應的 Boss 與各圈層的怪物池／菁英組合，讓深潛系統依 activeDive.layer 取用（見 05_深潛.js 的 getLayerXxx）。
+// 圈層對應的 Boss 與各圈層的怪物池，讓深潛系統依 activeDive.layer 取用（見 05_深潛.js 的 getLayerXxx）。
 const LAYER_BOSS = { 1: "島鯨", 2: "巨岩蚺" };
 const LAYER_MONSTER_POOLS = { 1: LAYER1_MONSTER_POOL, 2: LAYER2_MONSTER_POOL };
-const LAYER_ELITE_GROUPS = { 1: ENEMY_GROUPS_LAYER1, 2: ENEMY_GROUPS_LAYER2 };
 // 圈層基本資料：目前兩層，深潛系統與圈層選擇畫面共用。
 const LAYERS_META = {
   1: { layer: 1, name: "海洋", subtitle: "第一圈層" },

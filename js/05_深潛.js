@@ -18,9 +18,6 @@ function getLayerDepth(layer) {
 function getLayerMonsterPool(layer) {
   return LAYER_MONSTER_POOLS[layer] || LAYER1_MONSTER_POOL;
 }
-function getLayerEliteGroups(layer) {
-  return LAYER_ELITE_GROUPS[layer] || ENEMY_GROUPS_LAYER1;
-}
 function getLayerBoss(layer) {
   return LAYER_BOSS[layer] || "島鯨";
 }
@@ -270,20 +267,23 @@ function chooseNode(nodeType) {
 // ---------- 戰鬥節點 ----------
 
 // 隨機決定2或3隻，從四種小怪(凝膠/藍顎獸/翅鱗/眼藻)中不重複抽選
-function generateRandomMonsterGroup() {
+// 從當前圈層的怪物池隨機抽 2~3 隻不重複的小怪。allowMimic=true 時另有機率額外混入寶箱怪（不佔名額）。
+function drawRandomMonsters(allowMimic) {
   let count = randInt(2, 3);
   let pool = getLayerMonsterPool(activeDive.layer).slice();
   let group = [];
   for (let i = 0; i < count && pool.length > 0; i++) {
-    let idx = randInt(0, pool.length - 1);
-    group.push(pool.splice(idx, 1)[0]);
+    group.push(pool.splice(randInt(0, pool.length - 1), 1)[0]);
   }
-  if (chance(MIMIC_AMBUSH_CHANCE)) group.push("寶箱怪"); // 額外混入，不佔原本2~3隻的名額
+  if (allowMimic && chance(MIMIC_AMBUSH_CHANCE)) group.push("寶箱怪");
   return group;
 }
+function generateRandomMonsterGroup() { return drawRandomMonsters(true); }
 
+// 菁英節點（2026-08-12 納可拍板改成隨機）：一樣從當前圈層池隨機抽 2~3 隻，只是整組菁英化（×血/×傷）。
+// 不再用固定配方，也不混寶箱怪。全部圈層與之後新層都走這套。
 function resolveMonsterNode(nodeType) {
-  let group = nodeType === "elite" ? pickRandom(getLayerEliteGroups(activeDive.layer).菁英) : generateRandomMonsterGroup();
+  let group = nodeType === "elite" ? drawRandomMonsters(false) : generateRandomMonsterGroup();
 
   let launch = () => startBattle(group, { isElite: nodeType === "elite", allowFlee: true, rewardMult: 1, onResult: handleNodeBattleResult });
 
