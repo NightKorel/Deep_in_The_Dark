@@ -597,7 +597,7 @@ function resolveMimicEvent(entry) {
 function resolveTreasureNode() {
   let owned = getOwnedRelicIdsThisRun();
   let available = RELICS.filter((r) => !owned.includes(r.id));
-  let crystalAmount = randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]);
+  let crystalAmount = Math.round(randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]) * (LAYER_FIND_MULT[activeDive.layer] || 1)); // 越深的圈層寶藏潛晶越多
 
   let choices = [];
   if (available.length > 0) {
@@ -747,6 +747,18 @@ function getOwnedRelicIdsThisRun() {
   return owned;
 }
 
+// 從這趟深潛移除一件遺物（先找遺物背包，再找各角色身上），用於重鑄／賭遺物事件
+function removeRelicFromRun(relicId) {
+  let bi = activeDive.relicBackpack.indexOf(relicId);
+  if (bi !== -1) { activeDive.relicBackpack.splice(bi, 1); return true; }
+  for (let i = 0; i < SHELTER_PARTY_IDS.length; i++) {
+    let m = activeDive.party[SHELTER_PARTY_IDS[i]];
+    let ri = m.relics.indexOf(relicId);
+    if (ri !== -1) { m.relics.splice(ri, 1); return true; }
+  }
+  return false;
+}
+
 // 隨機抽一個這趟還沒拿過的遺物，直接放進背包（不用選人）
 function grantRandomRelic(onDone) {
   onDone = onDone || function () {};
@@ -874,6 +886,7 @@ function pickWeightedOutcome(outcomes) {
 function isChoiceFeasible(opt) {
   if (opt.requiresCarriedFood && !SHELTER_PARTY_IDS.some((id) => activeDive.party[id].carriedFood)) return false;
   if (opt.requiresCrystal != null && gameState.crystal < opt.requiresCrystal) return false;
+  if (opt.requiresOwnedRelic && getOwnedRelicIdsThisRun().length === 0) return false;
   return true;
 }
 
@@ -894,7 +907,7 @@ function buildOptionChoices(options, onDone) {
   let choices = options.map((opt) => ({
     label: opt.label,
     disabled: !isChoiceFeasible(opt),
-    disabledReason: opt.requiresCarriedFood ? "沒有人攜帶料理" : opt.requiresCrystal != null ? "潛晶不夠" : "",
+    disabledReason: opt.requiresCarriedFood ? "沒有人攜帶料理" : opt.requiresCrystal != null ? "潛晶不夠" : opt.requiresOwnedRelic ? "身上沒有遺物" : "",
     onSelect: () => resolveChoiceOutcome(opt, onDone),
   }));
   return choices;
@@ -993,7 +1006,7 @@ function applyDiveEffect(effect, onDone) {
       grantRandomRelic(onDone);
       return;
     case "find-crystal": {
-      let v = randInt(effect.range[0], effect.range[1]);
+      let v = Math.round(randInt(effect.range[0], effect.range[1]) * (LAYER_FIND_MULT[activeDive.layer] || 1)); // 越深的圈層撿到的潛晶越多
       addRunCrystal(v);
       systemToast(`💎 找到了 ${v} 顆潛晶。`);
       break;
@@ -1015,6 +1028,51 @@ function applyDiveEffect(effect, onDone) {
       let available = GLOBAL_BUFFS.filter((b) => !owned.includes(b.id));
       if (available.length === 0) { systemToast("似乎沒有更多增益效果了。"); break; }
       grantGlobalBuff(pickRandom(available));
+      break;
+    }
+    // 換掉一個現有增益、換成一個不同的新增益（共鳴殘響事件）；沒有可換的舊增益就直接送一個新的。
+    case "swap-random-buff": {
+      let owned = activeDive.globalBuffs;
+      let removable = owned.filter((id) => id !== "強韌體質"); // 強韌體質會墊高最大血量，換掉不好還原，排除
+      let available = GLOBAL_BUFFS.filter((b) => !owned.includes(b.id));
+      if (available.length === 0) { systemToast("似乎沒有更多不同的增益可以換了。"); break; }
+      if (removable.length === 0) { grantGlobalBuff(pickRandom(available)); break; }
+      let removeId = pickRandom(removable);
+      owned.splice(owned.indexOf(removeId), 1);
+      let removedName = (GLOBAL_BUFFS.find((b) => b.id === removeId) || {}).name || removeId;
+      let newBuff = pickRandom(available);
+      grantGlobalBuff(newBuff);
+      systemToast(`🔄 增益「${removedName}」變成了「${newBuff.name}」。`);
+      break;
+    }
+    // 把身上一件遺物重鑄成另一件不同的隨機遺物（遺物熔爐事件）
+    case "reroll-random-relic": {
+      let owned = getOwnedRelicIdsThisRun();
+      if (owned.length === 0) { systemToast("你身上沒有遺物可以重鑄。", true); break; }
+      let available = RELICS.filter((r) => !owned.includes(r.id));
+      if (available.length === 0) { systemToast("沒有更多不同的遺物可以換了。", true); break; }
+      let targetId = pickRandom(owned);
+      removeRelicFromRun(targetId);
+      let newRelic = pickRandom(available);
+      activeDive.relicBackpack.push(newRelic.id);
+      let oldName = (RELICS.find((r) => r.id === targetId) || {}).name || targetId;
+      systemToast(`🔸 「${oldName}」重鑄成了「${newRelic.name}」，收進遺物背包。`);
+      break;
+    }
+    // 獻上一件遺物：50% 換回兩件、50% 什麼都沒有（遺物賭盤事件）。期望值中性、有上有下。
+    case "gamble-relic": {
+      let owned = getOwnedRelicIdsThisRun();
+      if (owned.length === 0) { systemToast("你身上沒有遺物可以下注。", true); break; }
+      let targetId = pickRandom(owned);
+      removeRelicFromRun(targetId);
+      let oldName = (RELICS.find((r) => r.id === targetId) || {}).name || targetId;
+      if (chance(0.5)) {
+        systemToast(`🎉 圖騰吞下「${oldName}」，吐出了兩件遺物！`);
+        grantRandomRelic();
+        grantRandomRelic();
+      } else {
+        systemToast(`💀 圖騰吞掉了「${oldName}」，什麼也沒留下。`, true);
+      }
       break;
     }
     // 補丁v1修改4：嗡鳴晶簇改成3選1（增益效果本身是全隊性的，所以選完直接生效，不用再選角色）

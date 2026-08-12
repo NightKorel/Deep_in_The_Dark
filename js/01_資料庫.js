@@ -381,12 +381,15 @@ const MIMIC_AMBUSH_CHANCE = 0.05; // 一般小怪戰鬥額外混入寶箱怪的�
 const EXP_PER_MONSTER_LAYER1 = [3, 5]; // 隨機範圍
 const BOSS_EXP_REWARD = 20; // 文件沒寫Boss經驗值，先抓一個合理數字，之後可調
 const CRYSTAL_DROP = {
-  普通: [2, 5],
-  菁英: [6, 10],
+  普通: [3, 6],  // 小幅上調：打怪有風險（掉血/耗技能/可能全滅），潛晶要比被動事件多一點才值得
+  菁英: [7, 11],
   Boss: [12, 18],
 };
 // 圈層獎勵倍率：越深的圈層敵人越難，潛晶與經驗小幅上調，讓後期好賺一點；刻意只加一點點，別讓賭場以外的經濟膨脹太快。
 const LAYER_REWARD_MULT = { 1: 1, 2: 1.25 };
+// 探索類（隨機事件／奇異地形／寶藏）撿到的潛晶，越深的圈層給越多。刻意比戰鬥倍率(1.25)更明顯一點，
+// 讓「往更深處探索」本身就有回報；但一樣壓在合理範圍，別把玩家養太肥。
+const LAYER_FIND_MULT = { 1: 1, 2: 1.5 };
 // 混戰中打死寶箱怪的額外獎勵（疊加在原本的戰鬥獎勵之上）：50%機率潛晶大獎，50%機率潛晶小獎+1個隨機遺物
 const MIMIC_BONUS_CRYSTAL_BIG = [8, 12];
 const MIMIC_BONUS_CRYSTAL_SMALL = [4, 6];
@@ -498,7 +501,7 @@ const RANDOM_EVENTS = [
   // ---- 有選擇 (6) ----
   { id: "好奇的生物", name: "好奇的生物", desc: "一隻從沒見過的小生物蹲在路邊，歪著頭看你們。不像有敵意。", options: [
     { label: "給它食物", requiresCarriedFood: true, text: "它吃完之後從角落叼了一個東西過來。", effect: { type: "trade-food-for-crystal", range: [3, 6] } },
-    { label: "趕走它", text: "它跑走了，留下了一個小東西。", effect: { type: "find-crystal", range: [1, 2] } },
+    { label: "趕走它", text: "它跑走了，留下了一個小東西。", effect: { type: "find-crystal", range: [2, 4] } },
     { label: "不理它", effect: { type: "noop" } },
   ] },
   { id: "密封的容器", name: "密封的容器", desc: "地上有個密封的石製容器。不知道放了多久。上面的紋路還隱約在動。", options: [
@@ -532,14 +535,14 @@ const RANDOM_EVENTS = [
 
   // ---- 無選擇 (4) ----
   { id: "小型儲藏", name: "發現小型儲藏", desc: "角落裡有一個被遺棄的小包。裡面還剩一些潛晶。", effect: { type: "find-crystal", range: [2, 4] } },
-  { id: "漂流者的遺物", name: "漂流者的遺物", desc: "牆邊靠著一個空了的背包。裡面還有幾瓶沒打開的補血藥。", effect: { type: "find-potion", range: [1, 2] } },
-  { id: "寧靜角落", name: "寧靜角落", desc: "這片區域異常安靜。腳步聲都變得柔和了。在這裡待了一會之後，呼吸順暢了一些。", effect: { type: "heal-all-percent", value: 0.10 } },
+  { id: "漂流者的遺物", name: "漂流者的遺物", desc: "牆邊靠著一個空了的背包。裡面還有幾瓶沒打開的補血藥，夾層裡也藏著幾顆潛晶。", effect: { type: "compound", effects: [{ type: "find-potion", range: [1, 2] }, { type: "find-crystal", range: [1, 3] }] } },
+  { id: "寧靜角落", name: "寧靜角落", desc: "這片區域異常安靜，腳步聲都變得柔和了。在這裡待了一會，呼吸順暢了些；角落的碎石堆裡還嵌著幾顆潛晶。", effect: { type: "compound", effects: [{ type: "heal-all-percent", value: 0.15 }, { type: "find-crystal", range: [2, 4] }] } },
   { id: "地面塌陷", name: "地面塌陷", desc: "腳下一鬆——地面塌了一小塊。碎石刮傷了大家。不過裂縫裡有東西在發光。", effect: { type: "compound", effects: [{ type: "damage-all-flat", value: 2 }, { type: "grant-relic" }] } },
 
   // ---- 新增事件（有選擇）----
   { id: "迴音壁", name: "迴音壁", desc: "一面凹陷的岩壁把你的呼吸聲放大回傳。要不要對它喊點什麼？", options: [
     { label: "放聲大喊", outcomes: [
-      { chance: 0.55, text: "層層回音在洞裡盪開，某種共鳴讓你精神為之一振。", effect: { type: "random-member-crit-buff", value: 0.10 } },
+      { chance: 0.55, text: "層層回音在洞裡盪開，震落了岩壁上幾顆潛晶，也讓你精神為之一振。", effect: { type: "compound", effects: [{ type: "find-crystal", range: [3, 6] }, { type: "random-member-crit-buff", value: 0.10 }] } },
       { chance: 0.45, text: "回音招來了躲在暗處的東西……", effect: { type: "forced-battle", group: ["凝膠", "眼藻"], suppressRewards: true } },
     ] },
     { label: "安靜走開", effect: { type: "noop" } },
@@ -557,6 +560,20 @@ const RANDOM_EVENTS = [
       { chance: 0.5, text: "倒影忽然咧嘴一笑——你猛地回神，背後全是冷汗。", effect: { type: "damage-all-flat", value: 2 } },
     ] },
     { label: "攪散水面", text: "你伸手攪碎了倒影，水面回復平靜。什麼也沒發生……大概吧。", effect: { type: "noop" } },
+  ] },
+
+  // ---- 增益／遺物互動事件（讓玩家會去在意自己身上有什麼 buff 與遺物）----
+  { id: "共鳴殘響", name: "共鳴殘響", desc: "空氣裡有一種熟悉的震動——是你身上某個增益的迴響。它躁動著，似乎想換一種樣子。", options: [
+    { label: "順著它變化（換一個增益）", text: "你放任那股震動流過全身。", effect: { type: "swap-random-buff" } },
+    { label: "壓下這股躁動", effect: { type: "noop" } },
+  ] },
+  { id: "遺物熔爐", name: "遺物熔爐", desc: "岩壁上有一處還在悶燒的凹槽，形狀剛好能塞進一件遺物。投進去的東西，會被重新塑形成別的模樣。", options: [
+    { label: "投入一件遺物重鑄", requiresOwnedRelic: true, text: "你挑了一件遺物投進凹槽，熱氣一捲，它化成了別的東西。", effect: { type: "reroll-random-relic" } },
+    { label: "不碰", effect: { type: "noop" } },
+  ] },
+  { id: "遺物賭盤", name: "遺物賭盤", desc: "地面上刻著一個古怪的圖騰，中央的凹陷似乎在索求一件遺物，換取未知的東西。", options: [
+    { label: "獻上一件遺物賭一把", requiresOwnedRelic: true, text: "你摘下一件遺物，放進圖騰中央的凹陷。", effect: { type: "gamble-relic" } },
+    { label: "不理它", effect: { type: "noop" } },
   ] },
 ];
 
