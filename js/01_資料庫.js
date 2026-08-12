@@ -291,6 +291,45 @@ const MONSTERS = {
     idleLine: "巨岩蚺的鱗片與岩壁融為一體，只有吐信時才看得出牠在哪。",
     foodId: null, herbId: null,
   },
+
+  // ---------- 第三層（風谷）小怪＋Boss ----------
+  // 註（2026-08-12）：資料先建好，但尚未接進圈層進度（LAYER_MONSTER_POOLS[3]/節點/解鎖都還沒開），
+  //   所以玩家目前碰不到，也不會觸發下面那些「新技能 type」。等引擎 handler 都補齊、測穩了再一次接上。
+  擬巢怪: {
+    id: "擬巢怪", name: "擬巢怪", icon: "🪺", hpRange: [26, 32],
+    skillIds: ["擬巢怪_啄食", "擬巢怪_彈射", "擬巢怪_加固"],
+    codex: "「一叢亂糟糟的枯枝，我還想說撿去生火。結果那『巢』站起來了。我把柴刀都丟了，跑。」",
+    idleLine: "擬巢怪縮成一團枯枝的模樣，只有邊緣的羽毛在微微起伏。",
+    foodId: null, herbId: "巢絨",
+  },
+  掠禽: {
+    id: "掠禽", name: "掠禽", icon: "🦅", hpRange: [24, 30],
+    skillIds: ["掠禽_撕抓", "掠禽_俯衝", "掠禽_振翅"],
+    codex: "「牠盯上你的時候不會叫，只有風聲。等你聽見風聲，爪子已經到臉上了。」",
+    idleLine: "掠禽在高處盤旋，銳利的雙眼始終沒有離開你們。",
+    foodId: "掠禽肉", herbId: null,
+  },
+  青羽: {
+    id: "青羽", name: "青羽", icon: "🐦", hpRange: [22, 28],
+    skillIds: ["青羽_啄", "青羽_群護", "青羽_鼓翼"],
+    codex: "「小小一隻藍色的，超可愛，還會唱歌。唱著唱著旁邊那隻凶的傷口就好了。……先打牠，先打牠！」",
+    idleLine: "青羽輕快地在同伴間跳來跳去，發出清亮的鳴唱。",
+    foodId: null, herbId: "碧翎",
+  },
+  枝角翎: {
+    id: "枝角翎", name: "枝角翎", icon: "🦉", hpRange: [30, 36],
+    skillIds: ["枝角翎_角擊", "枝角翎_兀兀"],
+    codex: "「頭上長角的貓頭鷹。牠叫一聲『兀』，暗處就多站一隻一模一樣的。我數到第三隻才發現不對勁。」",
+    idleLine: "枝角翎一動不動地立著，頭上的分岔角在陰影裡若隱若現。",
+    foodId: "枝角梟肉", herbId: null,
+  },
+  花尾: {
+    id: "花尾", name: "花尾", icon: "🦚", isBoss: true, hpRange: [180, 180],
+    skillIds: ["花尾_啄擊", "花尾_羽扇", "花尾_漩渦紋", "花尾_呼喚"],
+    codex: "「牠展開尾羽的時候，整片風谷都安靜了。漂亮得不像真的——漂亮得讓人頭暈，然後你就分不清該打誰了。牠不太對勁，那不是鳥該有的眼神。」",
+    idleLine: "花尾緩緩張開尾羽，上面的紋路像無數隻眼睛，凶暴地凝視著你們。",
+    foodId: null, herbId: null,
+  },
 };
 
 // 怪物技能：type同角色技能；cooldown為冷卻回合數(0=無冷卻，每回合都能用)；intent對應顯示圖示
@@ -347,6 +386,25 @@ const MONSTER_SKILLS = {
   巨岩蚺_吞噬: { id: "巨岩蚺_吞噬", name: "吞噬", type: "devour-heal", healAmount: 22, cooldown: 0, intent: "❓" }, // forcedNextSkillId 連動觸發，不進隨機池
   巨岩蚺_碎地連擊: { id: "巨岩蚺_碎地連擊", name: "碎地連擊", type: "multi-random-hits", hits: 3, maxPerTarget: 2, dmgRange: [4, 7], cooldown: 2, intent: "⚔️" },
   巨岩蚺_地陷: { id: "巨岩蚺_地陷", name: "地陷", type: "press-stun", dmgRange: [6, 9], stunTurns: 2, cooldown: 3, intent: "☠️" },
+
+  // ---------- 第三層（風谷）技能 ----------
+  // ⚠️ 下面用到的新 type（multi-random-hits 的 hitsRange 變體、heal-all-enemies、buff-ally-charge、
+  //    summon-copy、confuse-chance-all、summon-temporary）需要在 06_戰鬥.js 補對應 handler 才會實際生效。
+  擬巢怪_啄食: { id: "擬巢怪_啄食", name: "啄食", type: "attack", targetType: "single-enemy", dmgRange: [3, 5], cooldown: 0, intent: "⚔️", isBasic: true },
+  擬巢怪_彈射: { id: "擬巢怪_彈射", name: "彈射", type: "multi-random-hits", hitsRange: [1, 5], allowRepeat: true, dmgRange: [1, 3], cooldown: 3, intent: "⚔️" },
+  擬巢怪_加固: { id: "擬巢怪_加固", name: "加固", type: "self-shield", shieldAmount: 4, cooldown: 2, intent: "❓" },
+  掠禽_撕抓: { id: "掠禽_撕抓", name: "撕抓", type: "attack", targetType: "single-enemy", dmgRange: [5, 7], cooldown: 0, intent: "⚔️", isBasic: true },
+  掠禽_俯衝: { id: "掠禽_俯衝", name: "俯衝", type: "attack", targetType: "single-enemy", dmgRange: [10, 14], cooldown: 2, intent: "⚔️" },
+  掠禽_振翅: { id: "掠禽_振翅", name: "振翅", type: "self-buff-dodge", dodgeChance: 0.5, cooldown: 3, intent: "❓" },
+  青羽_啄: { id: "青羽_啄", name: "啄", type: "attack", targetType: "single-enemy", dmgRange: [2, 4], cooldown: 0, intent: "⚔️", isBasic: true },
+  青羽_群護: { id: "青羽_群護", name: "群護", type: "heal-all-enemies", healRange: [4, 6], cooldown: 3, intent: "❓" },
+  青羽_鼓翼: { id: "青羽_鼓翼", name: "鼓翼", type: "buff-ally-charge", cooldown: 3, intent: "❓" },
+  枝角翎_角擊: { id: "枝角翎_角擊", name: "角擊", type: "attack", targetType: "single-enemy", dmgRange: [5, 8], cooldown: 0, intent: "⚔️", isBasic: true },
+  枝角翎_兀兀: { id: "枝角翎_兀兀", name: "兀兀", type: "summon-copy", summonId: "枝角翎", maxSummonsPerBattle: 2, cooldown: 3, intent: "❓" },
+  花尾_啄擊: { id: "花尾_啄擊", name: "啄擊", type: "attack", targetType: "single-enemy", dmgRange: [6, 9], cooldown: 0, intent: "⚔️", isBasic: true },
+  花尾_羽扇: { id: "花尾_羽扇", name: "羽扇", type: "attack", targetType: "all-enemies", dmgRange: [8, 12], cooldown: 3, intent: "⚔️" },
+  花尾_漩渦紋: { id: "花尾_漩渦紋", name: "漩渦紋", type: "confuse-chance-all", confuseChance: 0.30, cooldown: 3, intent: "☠️" },
+  花尾_呼喚: { id: "花尾_呼喚", name: "呼喚", type: "summon-temporary", summonId: "青羽", summonCount: 2, cooldown: 4, intent: "❓" },
 };
 
 const ELITE_HP_MULT = 1.5; // 無條件進位
@@ -633,6 +691,19 @@ const FOODS = {
     flavorText: "串起來炭烤，油脂滋滋作響。吃一口，開場那一下特別有勁。",
     buff: { type: "first-turn-dmg-percent", value: 0.15, rareValue: 0.30 },
   },
+  // 第三層（風谷）食材：掠禽、枝角翎掉落（一材料一料理）。資料先建好，尚未接進圈層。
+  掠禽肉: {
+    id: "掠禽肉", name: "掠禽肉", rareName: "稀有掠禽肉",
+    dishId: "香煎掠禽排", dishName: "香煎掠禽排",
+    flavorText: "瘦而不柴，煎到微焦特別香。吃完眼神都變利了。",
+    buff: { type: "crit-percent", value: 0.10, rareValue: 0.20 },
+  },
+  枝角梟肉: {
+    id: "枝角梟肉", name: "枝角梟肉", rareName: "稀有枝角梟肉",
+    dishId: "燉梟肉湯", dishName: "燉梟肉湯",
+    flavorText: "慢火燉到軟爛，湯頭濃厚。喝下去整個人都沉穩了下來，扛揍。",
+    buff: { type: "damage-reduction-percent", value: 0.10, rareValue: 0.20 },
+  },
 };
 const FOOD_DROP_RATE_NORMAL = 0.50;
 const FOOD_DROP_RATE_RARE = 0.05;
@@ -644,6 +715,9 @@ const FOOD_DROP_RATE_RARE = 0.05;
 const HERBS = {
   刺螯毒腺: { id: "刺螯毒腺", name: "刺螯毒腺", rareName: "稀有刺螯毒腺", potionId: "腐蝕彈" },
   膜翼血囊: { id: "膜翼血囊", name: "膜翼血囊", rareName: "稀有膜翼血囊", potionId: "血膜護盾" },
+  // 第三層（風谷）藥材：擬巢怪、青羽掉落（一材料一魔藥）。資料先建好，尚未接進圈層。
+  巢絨: { id: "巢絨", name: "巢絨", rareName: "稀有巢絨", potionId: "靜羽劑" },
+  碧翎: { id: "碧翎", name: "碧翎", rareName: "稀有碧翎", potionId: "碧翎液" },
 };
 const POTIONS = {
   腐蝕彈: {
@@ -657,6 +731,19 @@ const POTIONS = {
     target: "self",
     desc: "給自己一層護盾，吸收傷害。",
     effect: { type: "self-shield", shield: 8, rareShield: 14 },
+  },
+  // 第三層（風谷）魔藥：需要 06_戰鬥.js 補 cleanse-self / self-charge 兩種效果 handler 才會生效。
+  靜羽劑: {
+    id: "靜羽劑", name: "靜羽劑", icon: "🍃", herbId: "巢絨",
+    target: "self",
+    desc: "使用後解除自身所有負面狀態（中毒／流血／震懾／混亂）。",
+    effect: { type: "cleanse-self", rareHeal: 6 },
+  },
+  碧翎液: {
+    id: "碧翎液", name: "碧翎液", icon: "🌀", herbId: "碧翎",
+    target: "self",
+    desc: "使用後獲得蓄勢（下次攻擊傷害提升）。",
+    effect: { type: "self-charge", rareDodge: 0.3 },
   },
 };
 
