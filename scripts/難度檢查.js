@@ -20,7 +20,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 
-const N = 30;                    // 每組跑幾場
+const N = 12;                    // 每組跑幾場（12 夠看趨勢又快；要更穩的數字再往上調）
 const LAYERS = [1, 2, 3];        // 要測哪些層
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 

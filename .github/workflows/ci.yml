@@ -1,0 +1,35 @@
+name: CI（潛淵自動檢查）
+
+# 每次 push 或開 PR 都自動跑：語法檢查 + 冒煙測試（開遊戲跑一遍確認沒改壞）。
+# 全部跑在 GitHub 的機器上，不花任何 AI 額度。壞了會在 GitHub 上標紅、寄信通知。
+on:
+  push:
+  pull_request:
+  workflow_dispatch:   # 也可以在 GitHub 網頁手動觸發
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出程式碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 語法檢查（所有 js 檔）
+        run: |
+          for f in js/*.js scripts/*.js; do
+            echo "檢查 $f"
+            node --check "$f"
+          done
+
+      - name: 安裝 Playwright ＋ Chromium
+        run: |
+          npm install playwright
+          npx playwright install --with-deps chromium
+
+      - name: 冒煙測試（開遊戲跑一遍，確認沒改壞）
+        run: NODE_PATH=./node_modules node scripts/冒煙測試.js
