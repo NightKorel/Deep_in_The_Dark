@@ -53,6 +53,8 @@ let gameState = {
   storyLog: {}, // 劇情回顧：{ 場景id: {title, order, lines:[{speaker,text}]} }，玩到哪記到哪（防暴雷：沒看過的不會出現）
   settings: {
     autoTargetSingleEnemy: true, // 敵方只剩1隻時，普攻/單體技能自動選定目標、不用手動點
+    typewriter: true, // 劇情文字逐字打字動畫（關掉就整句直接顯示）
+    autoMode: "off", // 劇情自動下一句：off/slow/normal/fast（對話框右下角Auto按鈕循環切換、會記住）
   },
   achievements: {}, // 成就解鎖狀態 { 初次潛淵: true, ... }
   stats: { // 成就用的輔助統計（不是玩家直接看的數值）
@@ -205,6 +207,10 @@ function renderSettingsOptionsModal() {
       <strong>${gameState.settings.autoTargetSingleEnemy ? "☑" : "☐"} 敵方只剩1隻時自動選定目標</strong>
       <div class="dim">開啟後，敵方只剩1隻時，普攻/單體技能會直接對它出手，不用再手動點選目標。</div>
     </div>
+    <div class="menu-item" style="cursor:pointer;" onclick="toggleTypewriterSetting()">
+      <strong>${gameState.settings.typewriter !== false ? "☑" : "☐"} 劇情逐字動畫</strong>
+      <div class="dim">開啟後，劇情文字會一個字一個字跑出來；覺得太慢的話關掉就整句直接顯示。（對話框右下角的「自動」按鈕可切換自動下一句的速度。）</div>
+    </div>
     <div class="menu-item" style="cursor:default; display:flex; align-items:center; justify-content:space-between; gap:12px;">
       <div>
         <strong>🎨 ${displayName("主角")} 的代表色</strong>
@@ -218,6 +224,11 @@ function renderSettingsOptionsModal() {
 
 function toggleAutoTargetSetting() {
   gameState.settings.autoTargetSingleEnemy = !gameState.settings.autoTargetSingleEnemy;
+  renderSettingsOptionsModal();
+}
+
+function toggleTypewriterSetting() {
+  gameState.settings.typewriter = gameState.settings.typewriter === false;
   renderSettingsOptionsModal();
 }
 
@@ -296,6 +307,19 @@ function systemToast(msg, important) {
 let dialogueQueue = [];
 let dialogueOnComplete = null;
 
+// 逐字打字動畫狀態
+let typewriterTimer = null;      // setInterval 的 id（正在一個字一個字跑時才有值）
+let typewriterFullText = "";     // 本行的完整文字（跳過動畫時直接補上整句）
+let typewriterDone = true;       // 本行文字是否已經全部顯示完
+let typewriterReveal = null;     // 文字跑完後要做的事（顯示選項/輸入框/繼續鍵、排定Auto）
+const TYPEWRITER_SPEED = 22;     // 每個字之間的間隔(ms)，數字越小跑越快
+
+// Auto 自動下一句狀態
+let autoAdvanceTimer = null;     // setTimeout 的 id（一行跑完後正在倒數自動下一句時才有值）
+const AUTO_MODES = ["off", "slow", "normal", "fast"]; // 按鈕循環順序：關→慢→中→快→關
+const AUTO_LABELS = { off: "▶ 自動", slow: "⏸ 自動·慢", normal: "⏸ 自動·中", fast: "⏸ 自動·快" };
+const AUTO_DELAYS = { slow: 2400, normal: 1400, fast: 700 }; // 一行文字跑完後，等多久才自動跳下一句(ms)
+
 // logInfo（選填）：{ id, title, order, append } — 有給的話，把這段對話收進「劇情回顧」（見09_劇情記錄.js）。
 // 只有主線大段落才傳 logInfo，一般節點事件對話不記錄。
 function playDialogue(lines, onComplete, logInfo) {
@@ -303,7 +327,16 @@ function playDialogue(lines, onComplete, logInfo) {
   dialogueQueue = lines.slice();
   dialogueOnComplete = onComplete || null;
   document.getElementById("dialogue-overlay").classList.remove("hidden");
+  renderDialogueAutoBtn();
   showNextDialogueLine();
+}
+
+// 清掉所有進行中的計時器（逐字動畫、Auto倒數），避免殘留亂觸發或跳字。
+function clearDialogueTimers() {
+  if (typewriterTimer) { clearInterval(typewriterTimer); typewriterTimer = null; }
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+  typewriterDone = true;
+  typewriterReveal = null;
 }
 
 // 把一段對話的「有台詞的行」收進劇情回顧（旁白 speaker 為空字串，照樣記，回顧時當旁白顯示）。
@@ -325,6 +358,7 @@ function recordStoryLog(info, lines) {
 }
 
 function showNextDialogueLine() {
+  clearDialogueTimers();
   if (dialogueQueue.length === 0) {
     document.getElementById("dialogue-overlay").classList.add("hidden");
     let cb = dialogueOnComplete;
@@ -334,8 +368,57 @@ function showNextDialogueLine() {
   }
   let line = dialogueQueue[0];
   document.getElementById("dialogue-speaker").textContent = line.speaker || "";
-  document.getElementById("dialogue-text").textContent = line.text || "";
 
+  let choicesEl = document.getElementById("dialogue-choices");
+  let nextBtn = document.getElementById("dialogue-next-btn");
+  // 打字進行中：先清空選項、繼續鍵先當「跳過打字」用（點一下把整句秒顯示）。
+  choicesEl.innerHTML = "";
+  choicesEl.classList.add("hidden");
+  nextBtn.classList.remove("hidden");
+
+  // 這一行文字「跑完」之後才顯示選項/輸入框，或排定 Auto 自動下一句。
+  typewriterReveal = () => revealDialogueControls(line);
+  typeDialogueText(line.text || "");
+}
+
+// 逐字顯示一行文字；若在設定關掉逐字動畫，就直接整句顯示。
+function typeDialogueText(fullText) {
+  let el = document.getElementById("dialogue-text");
+  typewriterFullText = fullText;
+  // 逐字動畫關閉、或本行沒有文字（例如純輸入名字那行）→ 直接顯示、立刻擺出控制項。
+  if (!fullText || (gameState.settings && gameState.settings.typewriter === false)) {
+    el.textContent = fullText;
+    typewriterDone = true;
+    if (typewriterReveal) typewriterReveal();
+    return;
+  }
+  el.textContent = "";
+  typewriterDone = false;
+  let i = 0;
+  typewriterTimer = setInterval(() => {
+    i++;
+    el.textContent = fullText.slice(0, i);
+    if (i >= fullText.length) {
+      clearInterval(typewriterTimer);
+      typewriterTimer = null;
+      typewriterDone = true;
+      if (typewriterReveal) typewriterReveal();
+    }
+  }, TYPEWRITER_SPEED);
+}
+
+// 打字中被點一下：立刻把整句補完（跳過動畫），不前進到下一句。
+function finishTypewriter() {
+  if (typewriterTimer) { clearInterval(typewriterTimer); typewriterTimer = null; }
+  if (!typewriterDone) {
+    document.getElementById("dialogue-text").textContent = typewriterFullText;
+    typewriterDone = true;
+    if (typewriterReveal) typewriterReveal();
+  }
+}
+
+// 一行文字跑完後：擺出輸入框/選項（要玩家操作、不自動前進），或安排 Auto 自動下一句。
+function revealDialogueControls(line) {
   let choicesEl = document.getElementById("dialogue-choices");
   let nextBtn = document.getElementById("dialogue-next-btn");
   if (line.textInput) {
@@ -363,7 +446,9 @@ function showNextDialogueLine() {
     choicesEl.classList.remove("hidden");
     nextBtn.classList.add("hidden");
     setTimeout(() => input.focus(), 0);
-  } else if (line.choices && line.choices.length > 0) {
+    return; // 等玩家輸入，不自動前進
+  }
+  if (line.choices && line.choices.length > 0) {
     choicesEl.innerHTML = "";
     line.choices.forEach((c) => {
       let btn = document.createElement("button");
@@ -383,20 +468,62 @@ function showNextDialogueLine() {
     });
     choicesEl.classList.remove("hidden");
     nextBtn.classList.add("hidden");
-  } else {
-    choicesEl.classList.add("hidden");
-    nextBtn.classList.remove("hidden");
+    return; // 等玩家選，不自動前進
   }
+  // 純旁白/台詞：顯示繼續鍵；若開了 Auto，就排定自動下一句。
+  choicesEl.classList.add("hidden");
+  nextBtn.classList.remove("hidden");
+  scheduleAutoAdvance();
+}
+
+// 若 Auto 有開，安排「這一行跑完後」自動跳下一句。
+function scheduleAutoAdvance() {
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+  let mode = (gameState.settings && gameState.settings.autoMode) || "off";
+  if (mode === "off") return;
+  let delay = AUTO_DELAYS[mode] || AUTO_DELAYS.normal;
+  autoAdvanceTimer = setTimeout(() => {
+    autoAdvanceTimer = null;
+    advanceDialogue();
+  }, delay);
 }
 
 function advanceDialogue() {
   if (dialogueQueue.length === 0) return;
+  // 打字還沒跑完 → 這一下先把整句補完，不要直接跳下一句。
+  if (!typewriterDone) { finishTypewriter(); return; }
   let line = dialogueQueue[0];
   if (line.textInput) return; // 需要輸入文字時不能用「繼續」跳過
   if (line.choices && line.choices.length > 0) return; // 有選項時要點選項，不能用「繼續」跳過
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
   dialogueQueue.shift();
   if (line.onShown) line.onShown();
   showNextDialogueLine();
+}
+
+// Auto 按鈕：循環「關→慢→中→快→關」，並記住選擇（存進 gameState.settings.autoMode）。
+function cycleDialogueAuto() {
+  if (!gameState.settings) gameState.settings = {};
+  let cur = gameState.settings.autoMode || "off";
+  let next = AUTO_MODES[(AUTO_MODES.indexOf(cur) + 1) % AUTO_MODES.length];
+  gameState.settings.autoMode = next;
+  renderDialogueAutoBtn();
+  if (next === "off") {
+    if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+  } else if (typewriterDone) {
+    // 剛好停在一句已跑完的旁白上：開 Auto 立刻開始倒數（輸入框/選項的行不算）。
+    let line = dialogueQueue[0];
+    if (line && !line.textInput && !(line.choices && line.choices.length > 0)) scheduleAutoAdvance();
+  }
+}
+
+// 依目前 Auto 狀態更新按鈕文字/樣式。
+function renderDialogueAutoBtn() {
+  let btn = document.getElementById("dialogue-auto-btn");
+  if (!btn) return;
+  let mode = (gameState.settings && gameState.settings.autoMode) || "off";
+  btn.textContent = AUTO_LABELS[mode] || AUTO_LABELS.off;
+  btn.classList.toggle("on", mode !== "off");
 }
 
 // ---------- 存讀檔 ----------
@@ -661,6 +788,8 @@ function applySaveData(data) {
   try {
     if (data.settings && typeof data.settings === "object") {
       if (typeof data.settings.autoTargetSingleEnemy === "boolean") gameState.settings.autoTargetSingleEnemy = data.settings.autoTargetSingleEnemy;
+      if (typeof data.settings.typewriter === "boolean") gameState.settings.typewriter = data.settings.typewriter;
+      if (AUTO_MODES.indexOf(data.settings.autoMode) >= 0) gameState.settings.autoMode = data.settings.autoMode;
     }
   } catch (e) {}
 

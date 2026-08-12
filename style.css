@@ -349,7 +349,20 @@ body {
   cursor: pointer;
 }
 .dialogue-choice-btn:hover { border-color: #4fa8d8; color: #4fa8d8; }
-.dialogue-next-btn { display: block; margin-left: auto; margin-top: 12px; }
+.dialogue-bottom-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.dialogue-next-btn { margin: 0; }
+.dialogue-auto-btn {
+  background: #1a1d24;
+  border: 1px solid #3a3f4b;
+  color: #8b949e;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dialogue-auto-btn:hover { border-color: #4fa8d8; color: #4fa8d8; }
+.dialogue-auto-btn.on { border-color: #4fa8d8; color: #4fa8d8; background: #14222c; }
 
 /* 通用彈窗 */
 .modal-overlay {

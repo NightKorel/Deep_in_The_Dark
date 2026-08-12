@@ -203,12 +203,11 @@ function renderDiveScreen() {
     playDialogue([
       { speaker: "K", text: "等一下。" },
       { speaker: "", text: "K 的表情嚴肅起來。" },
-      { speaker: "K", text: "前面……感覺不對。很大。" },
-      { speaker: "K", text: "V。" },
-      { speaker: "", text: "V 點了一下頭。" },
-      { speaker: "K", text: "有東西堵在前面。我不確定那是什麼——但 L 失蹤的那個坑，就在這附近。" },
-      { speaker: "K", text: "如果 L 還在裡面，我們必須過去。" },
-      { speaker: "K", text: `${displayName("主角")}，準備好了就走吧。補血藥記得留著。` },
+      { speaker: "K", text: "……感覺不對。" },
+      { speaker: "", text: "V 點了一下頭，握緊刀柄。" },
+      { speaker: "K", text: "有東西在前面。我不確定那是什麼……但 L 失蹤的地方，就在這附近。" },
+      { speaker: "K", text: "如果 L 還被困在裡面，我們必須過去。" },
+      { speaker: "K", text: `${displayName("主角")}，走吧。` },
     ], renderDiveScreen, { id: "第一層Boss門前", title: "第一圈層・Boss 門前", order: 10 });
     return;
   }
@@ -216,13 +215,14 @@ function renderDiveScreen() {
   if (nodeIndex === depth - 1 && layer === 2 && !gameState.storyFlags.boss2DoorShown) {
     gameState.storyFlags.boss2DoorShown = true;
     playDialogue([
-      { speaker: "", text: "前方的通道被一根巨大的石柱堵住了大半。" },
-      { speaker: "L", text: "……那不是石柱。" },
+      { speaker: "", text: "前方的通道被一堆巨大的石頭堵住了大半。" },
+      { speaker: "K", text: "咦，這……" },
+      { speaker: "L", text: "那不全是石頭。" },
       { speaker: "", text: "L 的聲音壓得很低。" },
-      { speaker: "L", text: "它在呼吸。別靠太近——我在牠肚子裡待過，我認得這股味道。" },
+      { speaker: "V", text: "……在呼吸。別靠太近。" },
       { speaker: "K", text: "藥材就在牠守著的地方？" },
-      { speaker: "L", text: "多半是。想拿，就得先過牠這一關。" },
-      { speaker: "K", text: `${displayName("主角")}，整頓好就上吧。這傢伙……不好惹。` },
+      { speaker: "L", text: "依我的記憶，多半是。" },
+      { speaker: "K", text: `${displayName("主角")}，小心點。這傢伙……不好惹。` },
     ], renderDiveScreen, { id: "第二層Boss門前", title: "第二圈層・Boss 門前", order: 30 });
     return;
   }
@@ -373,33 +373,40 @@ function handleLayer1BossVictory() {
 
   playDialogue([
     { speaker: "", text: "島鯨龐大的身軀漸漸沉入水底，不再動彈。" },
-    { speaker: "", text: "水面下傳出微弱的動靜——是被吞下去的 L，暈乎乎的，但還活著。" },
-    { speaker: "K", text: "……找到了。終於找到了。" },
+    { speaker: "", text: "水面下傳出微弱的動靜，然後是氣泡——一個人浮了上來，銀白色的長髮在水中漂浮。" },
+    { speaker: "K", text: "——L！！" },
+    { speaker: "", text: "K、V和你一起把人拉上岸邊。那人咳了些水，癱坐在地喘著氣，綠眼睛半閉著。" },
+    { speaker: "", text: "K一把抱住了他。" },
+    { speaker: "K", text: "……找到了，終於找到了……" },
+    { speaker: "", text: "V蹲下來輕拍著K的肩膀，深藍的眸子卻看向你。他眨了眨眼。" },
+    { speaker: "", text: "你從那個眼神讀出了一絲感謝。" },
+    { speaker: "", text: "……" },
     // ---- 回到避難所後：L 恢復、道謝，K 的真心話 ----
-    { speaker: "", text: "回到避難所。L 靠著棚子的牆坐了很久，K 替他重新包紮了肩上的傷，又硬塞了半壺水過去。" },
-    { speaker: "", text: "過了好一會，L 的臉色終於回了點血色。" },
+    { speaker: "", text: "回到避難所。L 靠著棚子的牆坐了很久，K 替他重新包紮了傷，又硬塞了半壺水過去。" },
+    { speaker: "", text: "過了好一會，L 的臉色終於有了點血色。" },
     { speaker: "K", text: "……感覺怎麼樣？還撐得住嗎？" },
     { speaker: "L", text: "死不了。" },
     { speaker: "L", text: "……我沒事了。別這樣盯著我，怪滲人的。" },
-    { speaker: "K", text: "還有力氣嫌我，那就真的沒事了。" },
+    { speaker: "K", text: "哈，還有力氣嫌我，那就真的沒事了。" },
     { speaker: "", text: "L 轉向你，沉默了一下。" },
     { speaker: "L", text: "你……我們素昧平生。" },
-    { speaker: "L", text: "謝謝你。為了一個不認識的人，跑這一趟——這種傻事，一般人是不會做的。" },
-    { speaker: "V", text: "……他這是在道謝。" },
+    { speaker: "L", text: "謝謝你。為不認識的人冒險，這種傻事一般人是不會做的。" },
+    { speaker: "V", text: "他是在道謝。" },
+    { speaker: "", text: "V小聲地說，L瞥了他一眼。" },
     { speaker: "L", text: "我知道我在說什麼。" },
-    { speaker: "", text: "L 環顧著避難所，目光在幾個空掉的架子上停了停。" },
-    { speaker: "L", text: "魔藥的庫存……全空了。補血藥也見底。這段日子，你們過得很省吧。" },
-    { speaker: "L", text: "補血藥還好，材料現成，我來做。魔藥就不行了——沒有藥材，巧婦難為無米之炊。" },
-    { speaker: "L", text: "我在那東西肚子裡昏昏沉沉的時候，瞄到過幾種還算合適的素材。既然要往下走，順路，去找找看吧。" },
+    { speaker: "", text: "L站起身，環顧避難所，目光在幾個空掉的架子上停了停。" },
+    { speaker: "L", text: "魔藥的庫存……全空了，補血藥也剩得不多。這段日子，你們過得很省吧。" },
+    { speaker: "L", text: "補血藥很簡單，我來做。魔藥就不行了，需要特定的藥材。" },
+    { speaker: "L", text: "我之前看到過幾種還算合適的素材。既然要往下走，順路去找找看吧。" },
     { speaker: "", text: "K 張了張嘴，似乎想說什麼，最後又把話嚥了回去。" },
-    { speaker: "L", text: "……我去把製藥的傢伙整理一下。" },
+    { speaker: "L", text: "……我去把製藥的工具整理一下。" },
     { speaker: "", text: "L 撐著牆站起來，慢慢走向工坊。" },
     { speaker: "", text: "等 L 走遠，K 才壓低了聲音。" },
-    { speaker: "K", text: "他嘴上不饒人——其實我們三個裡面，最想帶著大家離開潛淵的，就是他。" },
-    { speaker: "K", text: "V 的腳有舊傷，在這種地方根本沒法好好養；我呢，就愛擺弄點市井小菜，在這什麼都缺的鬼地方，連這點念想都算奢侈。" },
+    { speaker: "K", text: "他嘴上不饒人。其實我們三個裡面，最想帶著大家離開潛淵的，就是他。" },
+    { speaker: "K", text: "V 的腳有舊傷，在這種地方根本沒法好好養；我喜歡嘗試各種市井小菜，但在這什麼都缺的鬼地方，連這點念想都算奢侈。" },
     { speaker: "V", text: "……嗯。" },
-    { speaker: "K", text: "L 一直說，一定有辦法出去的。回到潛淵之上，去過我們該有的、平凡但珍貴的日子。" },
-    { speaker: "K", text: "所以啊——就再陪他任性一次吧。走，回家，還有一堆事等著呢。" },
+    { speaker: "K", text: "L 一直說，一定有辦法出去的。回到潛淵之上，去過我們該有的、平凡但珍貴的日子。我、V，我們都想相信他。" },
+    { speaker: "K", text: `能重新聚在一起……真的太好了。謝謝你，${displayName("主角")}。` },
   ], () => applyShelterReturn("boss"), { id: "救出L", title: "第一圈層・救出 L", order: 20 });
 }
 
@@ -414,15 +421,15 @@ function handleLayer2BossVictory() {
     return;
   }
   playDialogue([
-    { speaker: "", text: "巨岩蚺龐大的身軀癱軟下來，纏著的石柱轟然崩落，揚起漫天塵灰。" },
+    { speaker: "", text: "巨岩蚺龐大的身軀癱軟下來，石堆轟然崩落，揚起漫天塵灰。" },
     { speaker: "L", text: "……成了。" },
-    { speaker: "", text: "L 蹲下身，在崩塌的碎石與那東西守著的角落裡翻找，撿起幾樣還算完好的素材，仔細收好。" },
-    { speaker: "L", text: "夠了。這些拿回去，我能做出幾瓶像樣的魔藥。" },
-    { speaker: "L", text: "還有個想法。補血藥不一定要一口灌下去——敷在傷口上，藥效能拖著慢慢滲，撐得比較久。" },
+    { speaker: "", text: "L 蹲下身，在崩塌的碎石與那東西守著的角落裡翻找，採集了些什麼，仔細收好。" },
+    { speaker: "L", text: "夠了。這些拿回去，應該能做出像樣的藥。有一些想法可以嘗試。" },
+    // 外敷機制解說：戰鬥裡「直飲／外敷」兩顆按鈕在此戰後解鎖，保留說明讓玩家知道多了一種用法。
+    { speaker: "L", text: "比如說補血藥——不一定要一口灌下去。敷在傷口上，藥效能拖著慢慢滲，撐得比較久。" },
     { speaker: "L", text: "回去我改一批新的。之後戰鬥裡你們自己選：急著保命就直飲，想撐久一點就外敷。" },
-    { speaker: "K", text: "第二層……我們過了。" },
-    { speaker: "L", text: "別高興太早。往下，只會更難走。" },
-    { speaker: "L", text: "……但至少，路是通的。" },
+    { speaker: "K", text: "……又一個區域，我們過了。" },
+    { speaker: "L", text: "別高興得太早。往下只會更難走。" },
   ], () => applyShelterReturn("boss"), { id: "第二層結局", title: "第二圈層・巨岩蚺之後", order: 40 });
 }
 

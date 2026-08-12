@@ -40,7 +40,10 @@
       <div id="dialogue-speaker" class="dialogue-speaker"></div>
       <div id="dialogue-text" class="dialogue-text"></div>
       <div id="dialogue-choices" class="dialogue-choices hidden"></div>
-      <button id="dialogue-next-btn" class="action-btn dialogue-next-btn" onclick="advanceDialogue()">繼續 ▾</button>
+      <div class="dialogue-bottom-bar">
+        <button id="dialogue-auto-btn" class="dialogue-auto-btn" onclick="cycleDialogueAuto()">▶ 自動</button>
+        <button id="dialogue-next-btn" class="action-btn dialogue-next-btn" onclick="advanceDialogue()">繼續 ▾</button>
+      </div>
     </div>
   </div>
 
