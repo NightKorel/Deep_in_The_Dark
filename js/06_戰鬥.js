@@ -1224,13 +1224,19 @@ function renderActionPanel(casterId) {
   let potionButtons;
   if (gameState.storyFlags.potionApplyUnlocked) {
     let hotPercent = activeDive.globalBuffs.includes("藥效強化") ? POTION_HOT_PERCENT * 1.5 : POTION_HOT_PERCENT;
+    // 解鎖外敷後，把「直飲／外敷」收成一個緊湊群組（共用同一份庫存），佔的寬度約等於一顆普通按鈕，避免擠版。
     potionButtons = `
-      <button class="battle-btn" title="直飲：立刻回復最大血量的 ${Math.round(potionHealPercent * 100)}%" ${potionDisabled} onclick="battleDrinkPotion('${casterId}')">
-        直飲補血藥<span class="btn-sub">即回 ${Math.round(potionHealPercent * 100)}% · 剩 ${gameState.potions} 瓶</span>
-      </button>
-      <button class="battle-btn" title="外敷：接下來 ${POTION_HOT_DURATION} 回合，每回合回復最大血量的 ${Math.round(hotPercent * 100)}%（下回合開始生效）" ${potionDisabled} onclick="battleApplyPotion('${casterId}')">
-        外敷補血藥<span class="btn-sub">${POTION_HOT_DURATION} 回合共 ${Math.round(hotPercent * POTION_HOT_DURATION * 100)}% · 剩 ${gameState.potions} 瓶</span>
-      </button>`;
+      <div class="battle-potion-group">
+        <div class="potion-group-label">🧪 補血藥 · 剩 ${gameState.potions} 瓶</div>
+        <div class="potion-group-btns">
+          <button class="battle-btn potion-mini" title="直飲：立刻回復最大血量的 ${Math.round(potionHealPercent * 100)}%" ${potionDisabled} onclick="battleDrinkPotion('${casterId}')">
+            直飲<span class="btn-sub">即回 ${Math.round(potionHealPercent * 100)}%</span>
+          </button>
+          <button class="battle-btn potion-mini" title="外敷：接下來 ${POTION_HOT_DURATION} 回合，每回合回復最大血量的 ${Math.round(hotPercent * 100)}%（下回合開始生效）" ${potionDisabled} onclick="battleApplyPotion('${casterId}')">
+            外敷<span class="btn-sub">${POTION_HOT_DURATION}回合共${Math.round(hotPercent * POTION_HOT_DURATION * 100)}%</span>
+          </button>
+        </div>
+      </div>`;
   } else {
     potionButtons = `
       <button class="battle-btn" title="回復最大血量的 ${Math.round(potionHealPercent * 100)}%" ${potionDisabled} onclick="battleDrinkPotion('${casterId}')">

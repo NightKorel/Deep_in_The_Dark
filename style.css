@@ -517,6 +517,13 @@ body {
 .battle-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .battle-btn .btn-sub { display: block; font-size: 11px; color: #6e7681; }
 
+/* 補血藥群組（解鎖外敷後）：直飲/外敷收成一個緊湊小組，佔的寬度約等於一顆普通按鈕，避免擠版 */
+.battle-potion-group { display: flex; flex-direction: column; gap: 4px; border: 1px solid #3a3f4b; border-radius: 8px; padding: 5px 7px; background: #161920; }
+.battle-potion-group .potion-group-label { font-size: 12px; color: #8b949e; text-align: center; }
+.battle-potion-group .potion-group-btns { display: flex; gap: 6px; }
+.battle-btn.potion-mini { min-width: 60px; padding: 6px 9px; font-size: 13px; }
+.battle-btn.potion-mini .btn-sub { font-size: 10px; }
+
 .battle-log { max-height: 130px; overflow-y: auto; font-size: 15px; line-height: 1.5; color: #c9d1d9; margin-top: 10px; border-top: 1px dashed #2d333b; padding-top: 8px; }
 .battle-log p { margin: 3px 0; }
 .battle-log p.log-dmg { color: #ff9d97; }
