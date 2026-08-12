@@ -61,7 +61,7 @@ const CHARACTERS = {
     baseHp: 18,
     baseAtk: 2, atkRange: [1, 3], atkHits: 2, // 普攻砍兩下，各1~3
     skillIds: ["K_治癒", "K_風刃", "K_雙擊", "K_輕靈"],
-    color: "#a97142", // 代表色：棕色
+    color: "#9C6F27", // 代表色：棕色（納可指定精確色號）
   },
   V: {
     id: "V",
@@ -71,7 +71,7 @@ const CHARACTERS = {
     baseHp: 14,
     baseAtk: 5, atkRange: [4, 6],
     skillIds: ["V_流血技", "V_爆擊技", "V_蓄力", "V_隱步"],
-    color: "#3d8fd6", // 代表色：藍色
+    color: "#4067A2", // 代表色：深藍（納可指定精確色號）
   },
   L: {
     id: "L",
@@ -81,7 +81,7 @@ const CHARACTERS = {
     baseHp: 16,
     baseAtk: 3, atkRange: [2, 4],
     skillIds: ["L_冰錐", "L_應急繃帶", "L_冰盾", "L_霜爆"], // 打贏Boss救出來後正式入隊，見06_戰鬥.js的handleBossVictory
-    color: "#4caf6e", // 代表色：綠色
+    color: "#9EBF7B", // 代表色：森林綠（納可指定精確色號）
   },
 };
 
