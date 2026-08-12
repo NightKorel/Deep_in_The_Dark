@@ -1142,11 +1142,28 @@ const TRADEHOUSE_MATERIALS = [
   { title: "🧪 藥材（第二圈層）", kind: "herb", price: 6, ids: ["刺螯毒腺", "膜翼血囊"] },
 ];
 
+// 「素材是否見過」＝跟圖鑑一樣的判斷：只有遇過（bestiary 記錄過）會掉這個素材的怪，才算見過、才買得到。
+// 目的：沒探索到的圈層素材不該能直接用代幣買到（防暴雷＋合理性，納可要求）。
+function isMaterialSeen(kind, id) {
+  let key = kind === "food" ? "foodId" : "herbId";
+  for (let mid in MONSTERS) {
+    if (MONSTERS[mid][key] === id && gameState.bestiary[mid]) return true;
+  }
+  return false;
+}
+
 function casinoTradehouseModal() {
   let sections = TRADEHOUSE_MATERIALS.map((sec) => {
     let rows = sec.ids.map((id) => {
       let def = sec.kind === "food" ? FOODS[id] : HERBS[id];
       if (!def) return "";
+      // 沒見過的素材：整條遮成「？？？」、鎖住不能買（防暴雷，跟圖鑑一致）。
+      if (!isMaterialSeen(sec.kind, id)) {
+        return `<div class="menu-item" style="cursor:default; display:flex; align-items:center; justify-content:space-between; gap:10px; opacity:0.55;">
+          <span>？？？ <span class="dim">（還沒遇過）</span></span>
+          <button class="action-btn" style="margin:0;" disabled title="要先在深潛中遇過會掉這個素材的怪，才買得到">🔒</button>
+        </div>`;
+      }
       let inv = sec.kind === "food" ? gameState.rawFoodInventory[id] : gameState.rawHerbInventory[id];
       let have = inv ? (inv.normal || 0) : 0;
       let afford = gameState.tokens >= sec.price;
@@ -1159,7 +1176,7 @@ function casinoTradehouseModal() {
   }).join("");
 
   openGenericModal("🛒 交易所", `
-    <p class="dim">H：「懶得一趟趟刷素材？花點代幣，我這兒現貨供應～ 一般貨隨你搬，稀有的可沒得賣喔。」</p>
+    <p class="dim">H：「懶得一趟趟刷素材？花點代幣，我這兒現貨供應～ 一般貨隨你搬，稀有的可沒得賣喔。沒見過的東西？那我可變不出來，自己去闖闖先。」</p>
     <p>🪙 代幣 <b>${gameState.tokens}</b></p>
     ${sections}
     <button class="action-btn secondary" style="margin-top:12px;" onclick="closeGenericModal()">關閉</button>
@@ -1170,6 +1187,7 @@ function casinoBuyMaterial(kind, id, price) {
   if (gameState.tokens < price) { systemToast("代幣不夠。", true); return; }
   let def = kind === "food" ? FOODS[id] : HERBS[id];
   if (!def) return;
+  if (!isMaterialSeen(kind, id)) { systemToast("還沒遇過這個素材，買不了。", true); return; } // 二次防護：防繞過
   gameState.tokens -= price;
   let store = kind === "food" ? gameState.rawFoodInventory : gameState.rawHerbInventory;
   if (!store[id]) store[id] = { normal: 0, rare: 0 };
