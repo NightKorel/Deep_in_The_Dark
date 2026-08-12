@@ -70,7 +70,12 @@ function startNewDive(foodChoice, potionChoice, startLayer) {
   if (!getUnlockedLayers().includes(startLayer)) startLayer = 1; // 保險：沒解鎖的圈層一律退回第一層
   let party = {};
   SHELTER_PARTY_IDS.forEach((id) => {
+    // 帶上這個角色永久裝著的遺物（新版遺物系統）；出戰才生效，就是把永久遺物複製進本趟戰鬥用的暫存隊伍。
+    let charRelics = gameState.characters[id].relics.slice();
     let maxHp = getCharacterMaxHp(id);
+    // 「最大血量+X%」類遺物在這裡一次墊高（等同永久裝備的加成），血量算好再開打。
+    let hpBonus = relicSum({ relics: charRelics }, "maxhp-percent");
+    if (hpBonus > 0) maxHp = Math.round(maxHp * (1 + hpBonus));
     let uses = {};
     gameState.equippedSkills[id].forEach((skillId) => { if (isSkillUnlocked(id, skillId)) uses[skillId] = SKILLS[skillId].maxUses; });
     let carried = foodChoice ? foodChoice[id] : null; // {dishId, rare} | null，已在 confirmDepart 扣過庫存
@@ -90,7 +95,7 @@ function startNewDive(foodChoice, potionChoice, startLayer) {
       chargeMultiplier: 1, // V_蓄力：下次任意攻擊傷害×N，消耗於該角色下次造成傷害時
       dodgeBuffThisTurn: 0, // V_隱步：施放的那個回合閃避率+%，下回合開始重置
       damageReduction: 0, damageReductionDuration: 0, // L_冰盾：減傷%，持續N回合
-      relics: [],
+      relics: charRelics, // 這趟戰鬥生效的遺物（＝該角色永久裝備的遺物）
       carriedFood: carried,
       carriedPotion: carriedPotionSel, // 攜帶的魔藥（戰鬥中使用，用掉變 null；沒用掉回程還回庫存）
       critBuffNextBattle: 0,
@@ -109,29 +114,11 @@ function startNewDive(foodChoice, potionChoice, startLayer) {
     nextBattleDmgDebuff: 0,
     nextBattleDmgBonus: 0, // 休息點「養精蓄銳」的專注buff：下場戰鬥傷害+10%
     shopOffer: null, // 商店這次進來時抽到的商品，離開後清空
-    relicBackpack: [], // 還沒裝備的遺物，用「遺物管理」畫面分配到角色身上
-    relicManagementSelected: null, // 目前選中準備裝備的背包遺物id
     gambleUsed: false, // 本趟是否已經玩過一次節點賭場（H 的冒險內賭局每趟只能賭一次）
     party,
   };
 
-  // 選擇較深圈層＝略過前面圈層：每略過一層補償 1 個隨機全局增益 + 2 個隨機遺物（進遺物背包）。
-  // 這是路線選擇的取捨補償，不是懲罰：略過的經驗/潛晶/食材不會拿到，遺物是隨機發放而非自選。
-  let skipped = startLayer - 1;
-  if (skipped > 0) {
-    for (let s = 0; s < skipped; s++) {
-      for (let b = 0; b < SKIP_LAYER_BUFF_COMP; b++) {
-        let available = GLOBAL_BUFFS.filter((x) => !activeDive.globalBuffs.includes(x.id));
-        if (available.length > 0) grantGlobalBuff(pickRandom(available));
-      }
-      for (let r = 0; r < SKIP_LAYER_RELIC_COMP; r++) {
-        let owned = getOwnedRelicIdsThisRun();
-        let available = RELICS.filter((x) => !owned.includes(x.id));
-        if (available.length > 0) activeDive.relicBackpack.push(pickRandom(available).id);
-      }
-    }
-    systemToast(`略過 ${skipped} 個圈層，補償了增益與遺物（在「遺物管理」分配）。`);
-  }
+  // （2026-08-12）選深層跳關「不再自動補償任何增益或遺物」——納可拍板，就單純跳過前面圈層。
 
   systemToast("整裝完畢，出發深潛。");
   gameState.stats.divesStarted++;
@@ -182,15 +169,11 @@ function diveEffectsHtml() {
     let b = GLOBAL_BUFFS.find((x) => x.id === id);
     return `<span class="dive-effect-icon" title="${b.desc}">✨ ${b.name}</span>`;
   });
-  let relicIcons = [];
-  if (activeDive.relicBackpack.length > 0) {
-    let names = activeDive.relicBackpack.map((rid) => RELICS.find((r) => r.id === rid).name).join("、");
-    relicIcons.push(`<span class="dive-effect-icon" title="背包裡還沒裝備的遺物：${names}">🎒 遺物背包 x${activeDive.relicBackpack.length}</span>`);
-  }
-  return icons.concat(relicIcons).join("");
+  return icons.join("");
 }
 
 function renderDiveScreen() {
+  flushRelicIntro(); // 若剛拿到第一個遺物（例如第一次出發拿到的「初次潛淵」），在這裡補播 K 的解說
   let nodeIndex = activeDive.nodeIndex;
   let layer = activeDive.layer;
   let depth = getLayerDepth(layer);
@@ -258,7 +241,6 @@ function renderDiveScreen() {
     <div class="dive-actions">
       <button class="action-btn" onclick="usePotionAction()">🧪 使用補血藥</button>
       <button class="action-btn" onclick="eatFoodAction()">🍲 食用料理</button>
-      <button class="action-btn" onclick="showRelicManagementScreen()">🔸 遺物管理</button>
       <button class="action-btn danger" onclick="retreatAction()">🚪 撤回避難所</button>
     </div>
   `, { withTopbar: true });
@@ -541,9 +523,8 @@ function getFeasibleCostExchangeOptions() {
     if (opt.effect.type === "trade-potions-for-dmg-buff") {
       return gameState.potions >= opt.effect.potionCost;
     }
-    if (opt.effect.type === "pay-crystal-for-relic-choice") {
-      let owned = getOwnedRelicIdsThisRun();
-      return RELICS.some((r) => !owned.includes(r.id));
+    if (opt.effect.type === "pay-crystal-for-buff-choice") {
+      return GLOBAL_BUFFS.some((b) => !activeDive.globalBuffs.includes(b.id));
     }
     return true;
   });
@@ -588,9 +569,13 @@ function resolveMimicEvent(entry) {
       allowFlee: true, suppressRewards: true,
       onResult: (result) => {
         if (result.outcome === "win") {
-          grantRandomRelic(() => {
-            playDialogue([{ speaker: "K", text: "還好動作夠快。" }], afterNodeContentResolved);
-          });
+          // 遺物改成成就獎勵後，打倒寶箱怪改成給潛晶＋一個隨機增益
+          let bonus = randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]) + 3;
+          addRunCrystal(bonus);
+          let available = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
+          if (available.length > 0) grantGlobalBuff(pickRandom(available));
+          systemToast(`💎 寶箱怪掉了 ${bonus} 顆潛晶！`);
+          playDialogue([{ speaker: "K", text: "還好動作夠快。" }], afterNodeContentResolved);
         } else if (result.outcome === "escaped" || result.outcome === "flee") {
           playDialogue([{ speaker: "K", text: "跑了……下次手腳快點。" }], afterNodeContentResolved);
         } else if (result.outcome === "wipe") {
@@ -603,25 +588,31 @@ function resolveMimicEvent(entry) {
 
 // ---------- 寶藏 🪎 ----------
 
-// 補丁v1修改7：先秀出具體是哪個遺物、什麼效果，玩家在「拿走遺物」跟「拿走潛晶」之間二選一，不是盲盒
+// 遺物改成成就獎勵後，寶藏不再給遺物。改成二選一：拿一大筆潛晶，或拿一個增益（本趟深潛限定，睡覺後消失）。
+// 「拿增益」多給一點潛晶當作代價感的平衡，兩邊都有價值、看玩家這趟缺錢還是缺強度。
 function resolveTreasureNode() {
-  let owned = getOwnedRelicIdsThisRun();
-  let available = RELICS.filter((r) => !owned.includes(r.id));
   let crystalAmount = Math.round(randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]) * (LAYER_FIND_MULT[activeDive.layer] || 1)); // 越深的圈層寶藏潛晶越多
+  let bumpedCrystal = crystalAmount + Math.round(crystalAmount * 0.5); // 「只拿潛晶」比「拿增益」多一半，補償沒拿到增益
+  let available = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
 
   let choices = [];
   if (available.length > 0) {
-    let relic = pickRandom(available);
-    choices.push({ label: `拿走遺物：${relic.name}（${relic.desc}）`, onSelect: () => {
-      activeDive.relicBackpack.push(relic.id);
-      systemToast(`🔸 獲得遺物：${relic.name}，收進了遺物背包。`);
+    let buff = pickRandom(available);
+    choices.push({ label: `拿走增益：${buff.name}（${buff.desc}）`, onSelect: () => {
+      grantGlobalBuff(buff);
+      afterNodeContentResolved();
+    } });
+    choices.push({ label: `只拿潛晶（💎${crystalAmount}）`, onSelect: () => {
+      addRunCrystal(crystalAmount);
+      afterNodeContentResolved();
+    } });
+  } else {
+    // 增益已全滿：直接給比較多的潛晶
+    choices.push({ label: `拿走潛晶（💎${bumpedCrystal}）`, onSelect: () => {
+      addRunCrystal(bumpedCrystal);
       afterNodeContentResolved();
     } });
   }
-  choices.push({ label: `拿走潛晶（💎${crystalAmount}）`, onSelect: () => {
-    addRunCrystal(crystalAmount);
-    afterNodeContentResolved();
-  } });
 
   playDialogue([{ speaker: "寶藏", text: "前方有被遺留下來的東西。", choices }], () => {});
 }
@@ -634,15 +625,15 @@ function resolveShopNode() {
     return;
   }
   if (!activeDive.shopOffer) {
+    // 遺物改成成就獎勵後，商店改賣「食材 + 增益」。增益是本趟深潛限定（睡覺後消失）。
     let foodDef = pickRandom(Object.values(FOODS));
-    let owned = getOwnedRelicIdsThisRun();
-    let pool = RELICS.filter((r) => !owned.includes(r.id));
-    let relicIds = [];
+    let pool = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
+    let buffIds = [];
     for (let i = 0; i < 2 && pool.length > 0; i++) {
       let idx = randInt(0, pool.length - 1);
-      relicIds.push(pool.splice(idx, 1)[0].id);
+      buffIds.push(pool.splice(idx, 1)[0].id);
     }
-    activeDive.shopOffer = { foodDishId: foodDef.dishId, relicIds };
+    activeDive.shopOffer = { foodDishId: foodDef.dishId, buffIds };
   }
   playDialogue([{ speaker: "", text: "角落堆著一些東西，看起來是之前經過的人留下的。旁邊放著幾顆潛晶，像是某種交換的規矩。" }], renderShopScreen);
 }
@@ -658,22 +649,22 @@ function renderShopScreen() {
     <button class="action-btn" title="效果：${foodBuffDescForDisplay(foodDef.buff.type, foodDef.buff.value)}" onclick="buyShopFood()">購買</button>
   </div>`;
 
-  let relicRows = offer.relicIds.length > 0
-    ? offer.relicIds.map((relicId) => {
-        let r = RELICS.find((x) => x.id === relicId);
+  let buffRows = offer.buffIds.length > 0
+    ? offer.buffIds.map((buffId) => {
+        let b = GLOBAL_BUFFS.find((x) => x.id === buffId);
         return `<div class="menu-item" style="cursor:default;">
-          <strong>🔸 ${r.name}</strong>
-          <div class="dim">${r.desc}</div>
-          <div class="dim">💎${SHOP_PRICES.relic}</div>
-          <button class="action-btn" title="${r.desc}" onclick="buyShopRelic('${relicId}')">購買</button>
+          <strong>✨ ${b.name}</strong>
+          <div class="dim">${b.desc}（本趟深潛限定）</div>
+          <div class="dim">💎${SHOP_PRICES.buff}</div>
+          <button class="action-btn" title="${b.desc}" onclick="buyShopBuff('${buffId}')">購買</button>
         </div>`;
       }).join("")
-    : `<div class="menu-item" style="cursor:default;"><span class="dim">🔸 遺物已經賣完了。</span></div>`;
+    : `<div class="menu-item" style="cursor:default;"><span class="dim">✨ 增益已經賣完了。</span></div>`;
 
   showScreen(`
     <h2 class="screen-title">遺留物資</h2>
     <p class="dim">角落堆著一些物資，旁邊放著幾顆潛晶，像是以物易物的規矩。</p>
-    <div class="card">${foodRow}${relicRows}</div>
+    <div class="card">${foodRow}${buffRows}</div>
     <button class="action-btn secondary" onclick="leaveShop()">繼續前進</button>
   `, { withTopbar: true });
 }
@@ -689,16 +680,16 @@ function buyShopFood() {
   renderShopScreen();
 }
 
-function buyShopRelic(relicId) {
+function buyShopBuff(buffId) {
   let offer = activeDive.shopOffer;
-  let idx = offer.relicIds.indexOf(relicId);
+  let idx = offer.buffIds.indexOf(buffId);
   if (idx === -1) return;
-  if (gameState.crystal < SHOP_PRICES.relic) { handleShopAnger(); return; }
-  gameState.crystal -= SHOP_PRICES.relic;
-  activeDive.relicBackpack.push(relicId);
-  let relic = RELICS.find((r) => r.id === relicId);
-  systemToast(`🔸 買了遺物：${relic.name}，收進了遺物背包。`);
-  offer.relicIds.splice(idx, 1);
+  if (activeDive.globalBuffs.includes(buffId)) { offer.buffIds.splice(idx, 1); renderShopScreen(); return; } // 保險：已經有了就不重複賣
+  if (gameState.crystal < SHOP_PRICES.buff) { handleShopAnger(); return; }
+  gameState.crystal -= SHOP_PRICES.buff;
+  let buff = GLOBAL_BUFFS.find((b) => b.id === buffId);
+  grantGlobalBuff(buff); // 增益是本趟深潛限定，買了立即生效
+  offer.buffIds.splice(idx, 1);
   renderShopScreen();
 }
 
@@ -735,10 +726,12 @@ function startShopAmbushBattle() {
   });
 }
 
-// 打贏偷襲後，這次商店剩下的東西(遺物+料理)全部免費拿走，之後這格就空了
+// 打贏偷襲後，這次商店剩下的東西(增益+料理)全部免費拿走，之後這格就空了
 function handleShopLoot() {
   let offer = activeDive.shopOffer;
-  if (offer.relicId) activeDive.relicBackpack.push(offer.relicId);
+  if (offer.buffIds) offer.buffIds.forEach((bid) => {
+    if (!activeDive.globalBuffs.includes(bid)) grantGlobalBuff(GLOBAL_BUFFS.find((b) => b.id === bid));
+  });
   if (offer.foodDishId) {
     if (!gameState.cookedInventory[offer.foodDishId]) gameState.cookedInventory[offer.foodDishId] = { normal: 0, rare: 0 };
     gameState.cookedInventory[offer.foodDishId].normal++;
@@ -749,119 +742,9 @@ function handleShopLoot() {
   playDialogue([{ speaker: "", text: "那個冰冷的氣息消失了。角落的物資任你取用。" }], afterNodeContentResolved);
 }
 
-// ---------- 遺物背包（補丁v1：獲得遺物不當場分配，進遺物背包，玩家自己到「遺物管理」裝備） ----------
-
-function getOwnedRelicIdsThisRun() {
-  let owned = activeDive.relicBackpack.slice();
-  SHELTER_PARTY_IDS.forEach((id) => owned.push(...activeDive.party[id].relics));
-  return owned;
-}
-
-// 從這趟深潛移除一件遺物（先找遺物背包，再找各角色身上），用於重鑄／賭遺物事件
-function removeRelicFromRun(relicId) {
-  let bi = activeDive.relicBackpack.indexOf(relicId);
-  if (bi !== -1) { activeDive.relicBackpack.splice(bi, 1); return true; }
-  for (let i = 0; i < SHELTER_PARTY_IDS.length; i++) {
-    let m = activeDive.party[SHELTER_PARTY_IDS[i]];
-    let ri = m.relics.indexOf(relicId);
-    if (ri !== -1) { m.relics.splice(ri, 1); return true; }
-  }
-  return false;
-}
-
-// 隨機抽一個這趟還沒拿過的遺物，直接放進背包（不用選人）
-function grantRandomRelic(onDone) {
-  onDone = onDone || function () {};
-  let owned = getOwnedRelicIdsThisRun();
-  let available = RELICS.filter((r) => !owned.includes(r.id));
-  if (available.length === 0) {
-    systemToast("你翻了翻，只找到一些潛晶。");
-    addRunCrystal(randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]));
-    onDone();
-    return;
-  }
-  let relic = pickRandom(available);
-  activeDive.relicBackpack.push(relic.id);
-  systemToast(`🔸 獲得遺物：${relic.name}，收進了遺物背包。`);
-  onDone();
-}
-
-function showRelicManagementScreen() {
-  let selected = activeDive.relicManagementSelected;
-
-  let backpackHtml = activeDive.relicBackpack.length === 0
-    ? `<p class="dim">背包是空的。</p>`
-    : activeDive.relicBackpack.map((rid) => {
-        let r = RELICS.find((x) => x.id === rid);
-        let isSelected = selected === rid;
-        return `<div class="relic-slot-card${isSelected ? " selected" : ""}" title="${r.desc}" onclick="selectBackpackRelic('${rid}')">
-          <span class="relic-slot-icon">🔸</span>
-          <span class="relic-slot-name">${r.name}</span>
-        </div>`;
-      }).join("");
-
-  let partyHtml = SHELTER_PARTY_IDS.map((id) => {
-    let c = CHARACTERS[id];
-    let m = activeDive.party[id];
-    let slots = [];
-    for (let i = 0; i < RELIC_MAX_PER_CHARACTER; i++) {
-      let rid = m.relics[i];
-      if (rid) {
-        let r = RELICS.find((x) => x.id === rid);
-        slots.push(`<div class="relic-slot-card equipped" title="${r.desc}（點擊拆下回背包）" onclick="unequipRelic('${id}', '${rid}')">
-          <span class="relic-slot-icon">🔸</span>
-          <span class="relic-slot-name">${r.name}</span>
-        </div>`);
-      } else {
-        slots.push(`<div class="relic-slot-card empty${selected ? " placeable" : ""}" title="${selected ? "點擊裝備選中的遺物" : "空槽"}" onclick="equipSelectedRelic('${id}')">空</div>`);
-      }
-    }
-    return `<div class="menu-item" style="cursor:default;">
-      <strong>${c.icon} ${displayName(id)}</strong>
-      <div class="relic-slot-row">${slots.join("")}</div>
-    </div>`;
-  }).join("");
-
-  showScreen(`
-    <h2 class="screen-title">遺物管理</h2>
-    <p class="dim">點背包裡的遺物選中，再點角色的空槽裝備上去；點已裝備的遺物可以拆下回背包。</p>
-    <div class="card">
-      <h3>遺物背包</h3>
-      <div class="relic-slot-row">${backpackHtml}</div>
-    </div>
-    <div class="card">${partyHtml}</div>
-    <button class="action-btn secondary" onclick="renderDiveScreen()">返回</button>
-  `, { withTopbar: true });
-}
-
-function selectBackpackRelic(relicId) {
-  activeDive.relicManagementSelected = activeDive.relicManagementSelected === relicId ? null : relicId;
-  showRelicManagementScreen();
-}
-
-function equipSelectedRelic(charId) {
-  let relicId = activeDive.relicManagementSelected;
-  if (!relicId) return;
-  let m = activeDive.party[charId];
-  if (m.relics.length >= RELIC_MAX_PER_CHARACTER) { systemToast("這個角色的遺物槽已經滿了。", true); return; }
-  let idx = activeDive.relicBackpack.indexOf(relicId);
-  if (idx === -1) return;
-  activeDive.relicBackpack.splice(idx, 1);
-  m.relics.push(relicId);
-  activeDive.relicManagementSelected = null;
-  gameState.stats.relicsEquipped++;
-  checkAchievements();
-  showRelicManagementScreen();
-}
-
-function unequipRelic(charId, relicId) {
-  let m = activeDive.party[charId];
-  let idx = m.relics.indexOf(relicId);
-  if (idx === -1) return;
-  m.relics.splice(idx, 1);
-  activeDive.relicBackpack.push(relicId);
-  showRelicManagementScreen();
-}
+// 註（2026-08-12）：遺物改成「成就永久獎勵、在避難所『技能遺物』頁面裝備」後，
+// 原本深潛中的遺物背包與遺物管理畫面（getOwnedRelicIdsThisRun / grantRandomRelic /
+// showRelicManagementScreen / equipSelectedRelic 等）整組已移除。裝備介面見 04_避難所.js。
 
 // 增益效果是全隊性的，加進globalBuffs後立即生效；「強韌體質」要當場把maxHp/hp都墊高
 function grantGlobalBuff(buff) {
@@ -896,7 +779,6 @@ function pickWeightedOutcome(outcomes) {
 function isChoiceFeasible(opt) {
   if (opt.requiresCarriedFood && !SHELTER_PARTY_IDS.some((id) => activeDive.party[id].carriedFood)) return false;
   if (opt.requiresCrystal != null && gameState.crystal < opt.requiresCrystal) return false;
-  if (opt.requiresOwnedRelic && getOwnedRelicIdsThisRun().length === 0) return false;
   return true;
 }
 
@@ -917,7 +799,7 @@ function buildOptionChoices(options, onDone) {
   let choices = options.map((opt) => ({
     label: opt.label,
     disabled: !isChoiceFeasible(opt),
-    disabledReason: opt.requiresCarriedFood ? "沒有人攜帶料理" : opt.requiresCrystal != null ? "潛晶不夠" : opt.requiresOwnedRelic ? "身上沒有遺物" : "",
+    disabledReason: opt.requiresCarriedFood ? "沒有人攜帶料理" : opt.requiresCrystal != null ? "潛晶不夠" : "",
     onSelect: () => resolveChoiceOutcome(opt, onDone),
   }));
   return choices;
@@ -995,9 +877,6 @@ function applyDiveEffect(effect, onDone) {
     case "random-one-of":
       applyDiveEffect(pickRandom(effect.options), onDone);
       return;
-    case "grant-relic":
-      grantRandomRelic(onDone);
-      return;
     case "damage-random-member-percent": {
       let id = pickRandom(SHELTER_PARTY_IDS);
       let m = activeDive.party[id];
@@ -1010,11 +889,14 @@ function applyDiveEffect(effect, onDone) {
     case "damage-all-percent": damageAllPercent(effect.value); systemToast(`全隊損失 ${Math.round(effect.value * 100)}% 血量。`, true); break;
     case "heal-all-flat": healAllFlat(effect.value); systemToast(`全隊回復 ${effect.value} 血。`); break;
     case "damage-all-flat": damageAllFlat(effect.value); systemToast(`全隊損失 ${effect.value} 血。`, true); break;
-    case "damage-all-flat-and-relic":
+    // 舊 alias（資料已不再引用；保險留著，改成扣血後給一個隨機增益）
+    case "damage-all-flat-and-relic": {
       damageAllFlat(effect.value);
-      systemToast(`全隊損失 ${effect.value} 血，但發現了東西。`, true);
-      grantRandomRelic(onDone);
-      return;
+      systemToast(`全隊損失 ${effect.value} 血，但感覺到一絲能量。`, true);
+      let available = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
+      if (available.length > 0) grantGlobalBuff(pickRandom(available));
+      break;
+    }
     case "find-crystal": {
       let v = Math.round(randInt(effect.range[0], effect.range[1]) * (LAYER_FIND_MULT[activeDive.layer] || 1)); // 越深的圈層撿到的潛晶越多
       addRunCrystal(v);
@@ -1055,36 +937,8 @@ function applyDiveEffect(effect, onDone) {
       systemToast(`🔄 增益「${removedName}」變成了「${newBuff.name}」。`);
       break;
     }
-    // 把身上一件遺物重鑄成另一件不同的隨機遺物（遺物熔爐事件）
-    case "reroll-random-relic": {
-      let owned = getOwnedRelicIdsThisRun();
-      if (owned.length === 0) { systemToast("你身上沒有遺物可以重鑄。", true); break; }
-      let available = RELICS.filter((r) => !owned.includes(r.id));
-      if (available.length === 0) { systemToast("沒有更多不同的遺物可以換了。", true); break; }
-      let targetId = pickRandom(owned);
-      removeRelicFromRun(targetId);
-      let newRelic = pickRandom(available);
-      activeDive.relicBackpack.push(newRelic.id);
-      let oldName = (RELICS.find((r) => r.id === targetId) || {}).name || targetId;
-      systemToast(`🔸 「${oldName}」重鑄成了「${newRelic.name}」，收進遺物背包。`);
-      break;
-    }
-    // 獻上一件遺物：50% 換回兩件、50% 什麼都沒有（遺物賭盤事件）。期望值中性、有上有下。
-    case "gamble-relic": {
-      let owned = getOwnedRelicIdsThisRun();
-      if (owned.length === 0) { systemToast("你身上沒有遺物可以下注。", true); break; }
-      let targetId = pickRandom(owned);
-      removeRelicFromRun(targetId);
-      let oldName = (RELICS.find((r) => r.id === targetId) || {}).name || targetId;
-      if (chance(0.5)) {
-        systemToast(`🎉 圖騰吞下「${oldName}」，吐出了兩件遺物！`);
-        grantRandomRelic();
-        grantRandomRelic();
-      } else {
-        systemToast(`💀 圖騰吞掉了「${oldName}」，什麼也沒留下。`, true);
-      }
-      break;
-    }
+    // 註（2026-08-12）：原本操作遺物的 reroll-random-relic／gamble-relic 已隨遺物系統大改移除，
+    // 對應的事件（遺物熔爐／遺物賭盤）也改成純增益版本（增益熔爐／共鳴賭盤）。
     // 補丁v1修改4：嗡鳴晶簇改成3選1（增益效果本身是全隊性的，所以選完直接生效，不用再選角色）
     case "choose-one-of-three-buffs": {
       let owned = activeDive.globalBuffs;
@@ -1108,13 +962,16 @@ function applyDiveEffect(effect, onDone) {
       activeDive.nextBattleDmgDebuff = effect.value;
       systemToast("下場戰鬥全隊傷害下降。", true);
       break;
-    case "sacrifice-hp-for-relic":
-      pickPartyMemberFlow("犧牲誰的 10% 當前血量來換取遺物？", (memberId) => {
+    case "sacrifice-hp-for-buff":
+      pickPartyMemberFlow("犧牲誰的 10% 當前血量來換取增益？", (memberId) => {
         let m = activeDive.party[memberId];
         let dmg = Math.max(1, Math.round(m.hp * effect.value));
         m.hp = Math.max(1, m.hp - dmg);
         systemToast(`${displayName(memberId)} 損失了 ${dmg} 血。`, true);
-        grantRandomRelic(onDone);
+        let available = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
+        if (available.length > 0) grantGlobalBuff(pickRandom(available));
+        else { let v = randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]); addRunCrystal(v); systemToast(`沒有更多增益了，改成找到 💎${v}。`); }
+        onDone();
       });
       return;
     case "pay-crystal-for-heal":
@@ -1150,24 +1007,19 @@ function applyDiveEffect(effect, onDone) {
         systemToast("補血藥不夠，無法交換。", true);
       }
       break;
-    case "pay-crystal-for-relic-choice": {
+    case "pay-crystal-for-buff-choice": {
       if (gameState.crystal < effect.cost) { systemToast("潛晶不夠，無法交換。", true); break; }
-      let owned = getOwnedRelicIdsThisRun();
-      let available = RELICS.filter((r) => !owned.includes(r.id));
-      if (available.length === 0) { systemToast("目前沒有更多遺物可以選了。", true); break; }
+      let available = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
+      if (available.length === 0) { systemToast("目前沒有更多增益可以選了。", true); break; }
       gameState.crystal -= effect.cost;
       let pool = available.slice();
       let offered = [];
       while (offered.length < 3 && pool.length > 0) offered.push(pool.splice(randInt(0, pool.length - 1), 1)[0]);
-      let choices = offered.map((r) => ({
-        label: `${r.name}（${r.desc}）`,
-        onSelect: () => {
-          activeDive.relicBackpack.push(r.id);
-          systemToast(`🔸 獲得遺物：${r.name}，收進了遺物背包。`);
-          onDone();
-        },
+      let choices = offered.map((b) => ({
+        label: `${b.name}（${b.desc}）`,
+        onSelect: () => { grantGlobalBuff(b); onDone(); },
       }));
-      playDialogue([{ speaker: "", text: "選一個帶走：", choices }], () => {});
+      playDialogue([{ speaker: "", text: "選一個帶走（本趟深潛限定）：", choices }], () => {});
       return;
     }
     case "sacrifice-hp-for-multi-battle-crit":
