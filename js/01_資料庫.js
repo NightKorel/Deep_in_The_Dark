@@ -85,7 +85,7 @@ const CHARACTERS = {
   },
 };
 
-const DEFAULT_PLAYER_COLOR = "#d9a441"; // 主角預設代表色（金色），可在設定選單自訂
+const DEFAULT_PLAYER_COLOR = "#BC954E"; // 主角預設代表色（沉穩土金；原本 #d9a441 太亮刺眼，納可要求降彩度/亮度到跟 L 差不多深）；可在設定選單自訂
 
 // 出征小隊固定順序（速度由高到低）：K → 主角 → V，L救出來後加在最後
 // 注意：這兩個陣列在遊戲執行中會被動態push("L")（見05_深潛.js的handleBossVictory、02_介面共用與存讀檔.js的syncLRoster），
@@ -781,24 +781,26 @@ const RELIC_CATEGORIES = {
   recover: { label: "回復", color: "#5bbf6a", icon: "💚" },
   support: { label: "輔助", color: "#b07fd8", icon: "✴️" },
 };
+// ⚠️ id 是內部鍵（成就 07 的 relic 欄位、存檔的已裝遺物都用 id）——【不要改 id】，改了舊存檔的遺物會失效。
+//    要改顯示名時只改 name。（納可要求：遺物名要像「物品」，不要抽象的情緒/形容詞；2026-08-12 改了一批。）
 const RELICS = [
-  { id: "初潛之勇", name: "初潛之勇", cat: "attack",  desc: "普攻傷害 +10%", effect: { type: "normal-atk-percent", value: 0.10 } },
-  { id: "重逢餘溫", name: "重逢餘溫", cat: "recover", desc: "每場戰鬥結束時回復12%最大血量", effect: { type: "post-battle-heal-percent", value: 0.12 } },
+  { id: "初潛之勇", name: "初潛匕首", cat: "attack",  desc: "普攻傷害 +10%", effect: { type: "normal-atk-percent", value: 0.10 } },
+  { id: "重逢餘溫", name: "灶心暖石", cat: "recover", desc: "每場戰鬥結束時回復12%最大血量", effect: { type: "post-battle-heal-percent", value: 0.12 } },
   { id: "洋流羅盤", name: "洋流羅盤", cat: "support", desc: "行動順序提前一位", effect: { type: "turn-order-shift", value: 1 } },
-  { id: "疾手之爪", name: "疾手之爪", cat: "attack",  desc: "普攻時15%機率攻擊兩次", effect: { type: "normal-atk-double-chance", value: 0.15 } },
+  { id: "疾手之爪", name: "雙生鐵爪", cat: "attack",  desc: "普攻時15%機率攻擊兩次", effect: { type: "normal-atk-double-chance", value: 0.15 } },
   { id: "無瑕之盾", name: "無瑕之盾", cat: "defense", desc: "受到傷害 -8%", effect: { type: "damage-taken-percent", value: -0.08 } },
-  { id: "不熄餘燼", name: "不熄餘燼", cat: "defense", desc: "倒地後站起時回復25%血量而非1血", effect: { type: "revive-heal-percent", value: 0.25 } },
-  { id: "飽足護身", name: "飽足護身", cat: "recover", desc: "最大血量 +10%", effect: { type: "maxhp-percent", value: 0.10 } },
-  { id: "拾荒者之眼", name: "拾荒者之眼", cat: "support", desc: "使用技能時10%機率不消耗次數", effect: { type: "skill-no-cost-chance", value: 0.10 } },
+  { id: "不熄餘燼", name: "不熄火種", cat: "defense", desc: "倒地後站起時回復25%血量而非1血", effect: { type: "revive-heal-percent", value: 0.25 } },
+  { id: "飽足護身", name: "厚墊皮甲", cat: "recover", desc: "最大血量 +10%", effect: { type: "maxhp-percent", value: 0.10 } },
+  { id: "拾荒者之眼", name: "拾荒單片鏡", cat: "support", desc: "使用技能時10%機率不消耗次數", effect: { type: "skill-no-cost-chance", value: 0.10 } },
   { id: "潛晶碎鑽", name: "潛晶碎鑽", cat: "attack",  desc: "爆擊率 +5%", effect: { type: "crit-rate-add", value: 0.05 } },
-  { id: "熟練刻印", name: "熟練刻印", cat: "attack",  desc: "技能傷害 +12%", effect: { type: "skill-dmg-percent", value: 0.12 } },
+  { id: "熟練刻印", name: "熟手刻刀", cat: "attack",  desc: "技能傷害 +12%", effect: { type: "skill-dmg-percent", value: 0.12 } },
   { id: "精鍛核心", name: "精鍛核心", cat: "attack",  desc: "普攻傷害 +8%", effect: { type: "normal-atk-percent", value: 0.08 } },
   { id: "岩蚺之牙", name: "岩蚺之牙", cat: "attack",  desc: "蓄勢加成從20%提升到30%", effect: { type: "charge-bonus-override", value: 0.30 } },
   { id: "岩鱗甲片", name: "岩鱗甲片", cat: "defense", desc: "受到傷害 -6%", effect: { type: "damage-taken-percent", value: -0.06 } },
   { id: "藥師之瓶", name: "藥師之瓶", cat: "recover", desc: "每場戰鬥結束時回復10%最大血量", effect: { type: "post-battle-heal-percent", value: 0.10 } },
-  { id: "饗宴之力", name: "饗宴之力", cat: "recover", desc: "最大血量 +8%", effect: { type: "maxhp-percent", value: 0.08 } },
+  { id: "饗宴之力", name: "錫製飯盒", cat: "recover", desc: "最大血量 +8%", effect: { type: "maxhp-percent", value: 0.08 } },
   { id: "老手護符", name: "老手護符", cat: "support", desc: "使用技能時8%機率不消耗次數", effect: { type: "skill-no-cost-chance", value: 0.08 } },
-  { id: "萬物歸一", name: "萬物歸一", cat: "attack",  desc: "技能傷害 +10%", effect: { type: "skill-dmg-percent", value: 0.10 } },
+  { id: "萬物歸一", name: "纏手綁帶", cat: "attack",  desc: "技能傷害 +10%", effect: { type: "skill-dmg-percent", value: 0.10 } },
 ];
 const RELIC_MAX_PER_CHARACTER = 3;
 // 依 effect.type 掃一個角色身上所有遺物、把同型效果的 value 加總（給戰鬥碼即時計算用）。
