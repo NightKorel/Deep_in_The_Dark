@@ -23,6 +23,7 @@ function startBattle(monsterIds, options) {
     m.poisonDuration = 0; // 中毒：戰鬥開始清空，避免跨戰鬥殘留
     m.hotHealPerTurn = 0; m.hotDuration = 0; // 順手修：這兩個原本沒在這裡重置，理論上會跨戰鬥殘留
     m.guardActive = false; m.chargeReady = false; m.stunTurns = 0;
+    m.confuseTurns = 0; // 混亂：戰鬥開始清空
     m.shield = 0;
     m.dmgBuffNextAttack = 0; m.chargeMultiplier = 1; m.dodgeBuffThisTurn = 0;
     m.damageReduction = 0; m.damageReductionDuration = 0;
@@ -69,6 +70,8 @@ function buildEnemyInstance(monsterId, isElite, idx) {
     stunTurns: 0, // 震懾剩餘回合數（>0 表示接下來這麼多次自己的行動會被跳過）
     burrowed: false, // 尖嘴鼠掘地：潛入地底時為 true，期間無法被選為目標、也不受全體技能波及
     isBossSummon: false, // 巨岩蚺喚岩叫出來的小怪：可被 Boss「吞噬」吃掉回血
+    chargeReady: false, // 敵方蓄勢（第三層青羽「鼓翼」給友軍上）：下次攻擊傷害提升
+    vanishAfterAction: false, // 第三層花尾「呼喚」召來的青羽：自己行動一次後就消失
   };
 }
 
@@ -187,7 +190,116 @@ function advanceAllyTurn() {
     setTimeout(advanceAllyTurn, 500);
     return;
   }
+  if (m.confuseTurns > 0) {
+    // 混亂：這回合玩家不能操作，角色自動亂行動（可能打到隊友/自己、補到敵人、或發呆）。
+    m.confuseTurns--;
+    renderBattleScreen();
+    setTimeout(() => executeConfusedTurn(id), 500);
+    return;
+  }
   renderBattleScreen(id);
+}
+
+// 混亂中的自動行動：從該角色「真的能用的行動」（攻擊＋還有次數的技能）隨機挑一個，
+// 目標從全場任意對象（敵方＋沒倒下的我方，含自己）隨機挑；攻擊/治療類會依落在敵或友做正確導向。
+// finishAllyAction() 由各分支負責呼叫，推進到下一個我方行動。
+function executeConfusedTurn(casterId) {
+  if (checkBattleEnd()) return;
+  let m = activeDive.party[casterId];
+  let c = CHARACTERS[casterId];
+  // 全場可當目標的對象
+  let enemyTargets = activeBattle.enemies.filter((e) => e.hp > 0 && !e.escaped && !e.burrowed);
+  let allyTargets = SHELTER_PARTY_IDS.filter((id) => !activeDive.party[id].fallen);
+  // 可用行動：攻擊 + 還有次數且已解鎖的技能
+  let actions = ["attack"];
+  gameState.equippedSkills[casterId].forEach((sid) => {
+    if (isSkillUnlocked(casterId, sid) && (m.skillUses[sid] || 0) > 0) actions.push(sid);
+  });
+  let action = pickRandom(actions);
+
+  // 隨機挑一個目標（敵或友），回傳 {kind:'enemy'|'ally', enemy?, allyId?}
+  let pickAnyTarget = () => {
+    let pool = [];
+    enemyTargets.forEach((e) => pool.push({ kind: "enemy", enemy: e }));
+    allyTargets.forEach((id) => pool.push({ kind: "ally", allyId: id }));
+    return pool.length ? pickRandom(pool) : null;
+  };
+
+  flashUnit(casterId, "actor");
+
+  if (action === "attack") {
+    let mult = getCharacterWeaponMultiplier(casterId);
+    let range = [Math.max(1, Math.ceil(c.atkRange[0] * mult)), Math.max(1, Math.ceil(c.atkRange[1] * mult))];
+    let t = pickAnyTarget();
+    if (!t) { finishAllyAction(); return; }
+    if (t.kind === "enemy") {
+      logBattle(`😵‍💫 ${displayName(casterId)} 混亂中，胡亂攻擊了 ${t.enemy.name}。`);
+      let r = Object.assign({ name: t.enemy.name }, dealDamageToEnemy(casterId, t.enemy, range, { isNormalAttack: true }));
+      void r;
+    } else {
+      logBattle(`😵‍💫 ${displayName(casterId)} 混亂中，一巴掌打向了自己人 ${displayName(t.allyId)}！`);
+      dealDamageToAlly({ isElite: false }, t.allyId, range); // 友傷：用一個沒有菁英加成的假攻擊者
+    }
+    finishAllyAction();
+    return;
+  }
+
+  // 技能（混亂）：扣一次次數，再依技能類型導向隨機目標
+  let skill = SKILLS[action];
+  m.skillUses[action]--;
+  let mult = getCharacterWeaponMultiplier(casterId);
+
+  if (skill.type === "attack") {
+    let range = [Math.max(1, Math.ceil(skill.dmgRange[0] * mult)), Math.max(1, Math.ceil(skill.dmgRange[1] * mult))];
+    let t = pickAnyTarget();
+    if (!t) { finishAllyAction(); return; }
+    if (t.kind === "enemy") {
+      logBattle(`😵‍💫 ${displayName(casterId)} 混亂中，對 ${t.enemy.name} 亂放了「${skill.name}」。`);
+      let hits = skill.hits || 1;
+      for (let h = 0; h < hits; h++) { if (t.enemy.hp <= 0) break; dealDamageToEnemy(casterId, t.enemy, range, { isSkill: true }); }
+    } else {
+      logBattle(`😵‍💫 ${displayName(casterId)} 混亂中，把「${skill.name}」砸到了自己人 ${displayName(t.allyId)}！`);
+      let hits = skill.hits || 1;
+      for (let h = 0; h < hits; h++) dealDamageToAlly({ isElite: false }, t.allyId, range);
+    }
+    finishAllyAction();
+    return;
+  }
+
+  if (skill.type === "heal" || skill.type === "hot") {
+    let t = pickAnyTarget();
+    if (!t) { finishAllyAction(); return; }
+    if (t.kind === "ally") {
+      // 剛好補到自己人：正常治療
+      let healMult = getCharacterHealMultiplier(casterId);
+      let tm = activeDive.party[t.allyId];
+      if (skill.type === "heal") {
+        let heal = Math.ceil(randInt(skill.healRange[0], skill.healRange[1]) * healMult);
+        tm.hp = Math.min(tm.maxHp, tm.hp + heal);
+        spawnFloatingNumber(t.allyId, "+" + heal, "heal");
+        logBattle(`😵‍💫 ${displayName(casterId)} 混亂中亂放「${skill.name}」，剛好治療了 ${displayName(t.allyId)}（+${heal}）。`);
+      } else {
+        tm.hotHealPerTurn = Math.ceil(skill.hotHealPerTurn * healMult);
+        tm.hotDuration = skill.hotDuration;
+        logBattle(`😵‍💫 ${displayName(casterId)} 混亂中亂放「${skill.name}」，剛好幫 ${displayName(t.allyId)} 上了持續回血。`);
+      }
+    } else {
+      // 補到敵人身上：白白幫敵人回血
+      let healMult = getCharacterHealMultiplier(casterId);
+      let raw = skill.type === "heal" ? Math.ceil(randInt(skill.healRange[0], skill.healRange[1]) * healMult) : Math.ceil(skill.hotHealPerTurn * healMult);
+      t.enemy.hp = Math.min(t.enemy.maxHp, t.enemy.hp + raw);
+      spawnFloatingNumber(t.enemy.uid, "+" + raw, "heal");
+      logBattle(`😵‍💫 ${displayName(casterId)} 混亂中認錯了人，把「${skill.name}」的治療給了敵方 ${t.enemy.name}（+${raw}）！`);
+    }
+    finishAllyAction();
+    return;
+  }
+
+  // 其餘（自身/全隊增益、格擋、蓄力、閃避、減傷等）：就當作「剛好正常施放在自己/隊伍」，走原本流程。
+  logBattle(`😵‍💫 ${displayName(casterId)} 混亂中，糊裡糊塗地對自己人用了「${skill.name}」。`);
+  m.skillUses[action]++; // 還回去，讓 resolveSkillNoTarget 自己扣（它內部會處理次數與效果）
+  let targetId = (skill.targetType === "single-ally") ? pickRandom(allyTargets) : null;
+  resolveSkillNoTarget(casterId, action, targetId); // 內部會呼叫 finishAllyAction
 }
 
 function startEnemyPhase() {
@@ -223,6 +335,12 @@ function processNextEnemyTurn() {
   }
 
   executeEnemySkill(enemy);
+  // 花尾「呼喚」召來的青羽：行動一次後就離場消失（不算被打死、沒有戰利品）。
+  if (enemy.vanishAfterAction) {
+    enemy.hp = 0;
+    enemy.escaped = true;
+    logBattle(`${enemy.icon} ${enemy.name} 拍拍翅膀，消失在風裡。`);
+  }
   renderBattleScreen();
   if (checkBattleEnd()) return;
   setTimeout(processNextEnemyTurn, 650);
@@ -283,17 +401,22 @@ function executeEnemySkill(enemy) {
 
   if (skill.type === "attack") {
     let hits = skill.hits || 1;
+    // 敵方蓄勢（青羽「鼓翼」給的）：這次攻擊傷害提升，用完消耗。
+    let atkRange = enemy.chargeReady
+      ? [Math.ceil(skill.dmgRange[0] * (1 + CHARGE_BONUS)), Math.ceil(skill.dmgRange[1] * (1 + CHARGE_BONUS))]
+      : skill.dmgRange;
     let results = [];
     if (skill.targetType === "all-enemies") {
       SHELTER_PARTY_IDS.forEach((id) => {
         if (activeDive.party[id].fallen) return;
-        for (let h = 0; h < hits; h++) results.push(Object.assign({ name: displayName(id) }, dealDamageToAlly(enemy, id, skill.dmgRange)));
+        for (let h = 0; h < hits; h++) results.push(Object.assign({ name: displayName(id) }, dealDamageToAlly(enemy, id, atkRange)));
       });
     } else {
       let targetId = pickAllyTarget();
-      if (targetId) for (let h = 0; h < hits; h++) results.push(Object.assign({ name: displayName(targetId) }, dealDamageToAlly(enemy, targetId, skill.dmgRange)));
+      if (targetId) for (let h = 0; h < hits; h++) results.push(Object.assign({ name: displayName(targetId) }, dealDamageToAlly(enemy, targetId, atkRange)));
     }
-    logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，對 ${summarizeHits(results)}。`);
+    logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，對 ${summarizeHits(results)}${enemy.chargeReady ? "（蓄勢釋放）" : ""}。`);
+    if (enemy.chargeReady) enemy.chargeReady = false;
     if (skill.forcesNextBite) enemy.forcedNextSkillId = "藍顎獸_撕咬";
     if (skill.lifesteal) {
       let drained = results.reduce((sum, r) => sum + (r.miss ? 0 : r.dmg), 0);
@@ -400,18 +523,89 @@ function executeEnemySkill(enemy) {
       logBattle(`${enemy.icon} ${enemy.name} 張口想吞掉小怪回血——卻撲了個空，小怪早被解決了！`);
     }
   } else if (skill.type === "multi-random-hits") {
-    // 巨岩蚺「碎地連擊」：隨機打 hits 下，同一個人最多挨 maxPerTarget 下。
+    // 兩種用法：
+    //  · 巨岩蚺「碎地連擊」：固定 hits 下，同一個人最多挨 maxPerTarget 下（不重複太多）。
+    //  · 擬巢怪「彈射」：hitsRange 隨機次數、allowRepeat 目標可重複（同一人可能連中好幾下）。
     let alive = SHELTER_PARTY_IDS.filter((id) => !activeDive.party[id].fallen);
-    let maxPer = skill.maxPerTarget || skill.hits;
+    let hits = skill.hitsRange ? randInt(skill.hitsRange[0], skill.hitsRange[1]) : skill.hits;
     let bag = [];
-    alive.forEach((id) => { for (let k = 0; k < maxPer; k++) bag.push(id); });
-    bag = bag.sort(() => Math.random() - 0.5).slice(0, skill.hits); // 洗牌後取前 hits 個，天生就把每人上限壓在 maxPer
+    if (skill.allowRepeat) {
+      for (let k = 0; k < hits && alive.length > 0; k++) bag.push(pickRandom(alive)); // 每下獨立隨機、可重複
+    } else {
+      let maxPer = skill.maxPerTarget || hits;
+      alive.forEach((id) => { for (let k = 0; k < maxPer; k++) bag.push(id); });
+      bag = bag.sort(() => Math.random() - 0.5).slice(0, hits); // 洗牌後取前 hits 個，天生把每人上限壓在 maxPer
+    }
     let results = [];
     bag.forEach((id) => {
       if (activeDive.party[id].fallen) return;
       results.push(Object.assign({ name: displayName(id) }, dealDamageToAlly(enemy, id, skill.dmgRange)));
     });
     logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，${results.length ? `對 ${summarizeHits(results)}` : "但沒打中任何人"}。`);
+  } else if (skill.type === "heal-all-enemies") {
+    // 青羽「群護」：把自己這邊（敵方）所有還活著的怪都補一點血。
+    let raw = randInt(skill.healRange[0], skill.healRange[1]);
+    let healedNames = [];
+    activeBattle.enemies.forEach((e) => {
+      if (e.hp <= 0 || e.escaped) return;
+      let before = e.hp;
+      e.hp = Math.min(e.maxHp, e.hp + raw);
+      if (e.hp > before) { spawnFloatingNumber(e.uid, "+" + (e.hp - before), "heal"); healedNames.push(e.name); }
+    });
+    logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，${healedNames.length ? `治療了 ${healedNames.join("、")}` : "但沒有誰需要治療"}。`);
+  } else if (skill.type === "buff-ally-charge") {
+    // 青羽「鼓翼」：幫「其他」還活著的敵方友軍隨機一個上蓄勢；場上只剩自己時落空。
+    let others = activeBattle.enemies.filter((e) => e !== enemy && e.hp > 0 && !e.escaped);
+    if (others.length > 0) {
+      let ally = pickRandom(others);
+      ally.chargeReady = true;
+      spawnFloatingNumber(ally.uid, "蓄勢", "heal");
+      logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，讓 ${ally.name} 蓄勢待發（下次攻擊更痛）！`);
+    } else {
+      logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，但身邊沒有同伴可以鼓舞，落空了。`);
+    }
+  } else if (skill.type === "summon-copy") {
+    // 枝角翎「兀兀」：召來一隻一樣的自己；一場戰鬥最多發生 maxSummonsPerBattle 次（用 activeBattle 計數，含被召來的那隻，避免無限循環）。
+    activeBattle.summonCopyCounts = activeBattle.summonCopyCounts || {};
+    let key = skill.summonId;
+    let used = activeBattle.summonCopyCounts[key] || 0;
+    let room = MAX_ENEMIES_ON_FIELD - activeBattle.enemies.filter((e) => e.hp > 0 && !e.escaped).length;
+    if (used >= skill.maxSummonsPerBattle) {
+      logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，但這片林子裡再也叫不出同伴了。`);
+    } else if (room <= 0) {
+      logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，但場上已經沒有空間了。`);
+    } else {
+      let inst = buildEnemyInstance(skill.summonId, enemy.isElite, activeBattle.enemies.length);
+      inst.justSummoned = true;
+      activeBattle.enemies.push(inst);
+      gameState.bestiary[skill.summonId] = true;
+      activeBattle.summonCopyCounts[key] = used + 1;
+      logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，「兀——」暗處站起了另一隻 ${MONSTERS[skill.summonId].name}！`);
+    }
+  } else if (skill.type === "summon-temporary") {
+    // 花尾「呼喚」：召來 summonCount 隻小怪，牠們自己行動一次後就消失（vanishAfterAction）；行動前被打掉就不會放技能。
+    let room = MAX_ENEMIES_ON_FIELD - activeBattle.enemies.filter((e) => e.hp > 0 && !e.escaped).length;
+    let count = Math.min(skill.summonCount || 1, room);
+    let names = [];
+    for (let i = 0; i < count; i++) {
+      let inst = buildEnemyInstance(skill.summonId, false, activeBattle.enemies.length);
+      inst.justSummoned = true;
+      inst.vanishAfterAction = true;
+      activeBattle.enemies.push(inst);
+      gameState.bestiary[skill.summonId] = true;
+      names.push(MONSTERS[skill.summonId].name);
+    }
+    if (names.length > 0) logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，喚來了 ${names.join("、")}！（牠們行動一次就會離開——趕在那之前打掉牠們！）`);
+    else logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，但四周已經沒有空間了。`);
+  } else if (skill.type === "confuse-chance-all") {
+    // 花尾「漩渦紋」：全體我方，無傷害，每人各自 confuseChance 機率陷入「混亂」1 回合。
+    let confused = [];
+    SHELTER_PARTY_IDS.forEach((id) => {
+      let m = activeDive.party[id];
+      if (m.fallen) return;
+      if (chance(skill.confuseChance)) { m.confuseTurns = Math.max(m.confuseTurns, 1); confused.push(displayName(id)); flashUnit(id, "target"); }
+    });
+    logBattle(`${enemy.icon} ${enemy.name} 使用「${skill.name}」，尾羽的紋路旋轉起來${confused.length ? `——${confused.join("、")}陷入了混亂！` : "，但大家都撐住了。"}`);
   } else if (skill.type === "press-stun") {
     // 巨岩蚺「地陷」：把一名角色壓進地面，受一次傷害後被震懾 stunTurns 回合。
     let targetId = pickAllyTarget();
@@ -855,6 +1049,20 @@ function battleUsePotion(casterId) {
     let amt = cp.rare ? eff.rareShield : eff.shield;
     m.shield += amt;
     logBattle(`🛡️ ${displayName(casterId)} 使用「${pd.name}」，獲得 ${amt} 點護盾。`);
+  } else if (eff.type === "cleanse-self") {
+    // 靜羽劑：解除自身所有負面狀態（中毒/流血/震懾/混亂）；稀有版另外回一點血。
+    m.poisonDuration = 0; m.bleedStacks = 0; m.bleedDuration = 0; m.stunTurns = 0; m.confuseTurns = 0;
+    let healPart = "";
+    if (cp.rare && eff.rareHeal) { let h = Math.min(eff.rareHeal, m.maxHp - m.hp); m.hp += h; if (h > 0) { spawnFloatingNumber(casterId, "+" + h, "heal"); healPart = `，並回復 ${h} 點血量`; } }
+    flashUnit(casterId, "actor");
+    logBattle(`🍃 ${displayName(casterId)} 使用「${pd.name}」，抖落了一身的壞東西（清除負面狀態）${healPart}。`);
+  } else if (eff.type === "self-charge") {
+    // 碧翎液：自身獲得蓄勢（下次攻擊傷害提升）；稀有版另外本回合閃避提升。
+    m.chargeReady = true;
+    let dodgePart = "";
+    if (cp.rare && eff.rareDodge) { m.dodgeBuffThisTurn = Math.max(m.dodgeBuffThisTurn, eff.rareDodge); dodgePart = `，並在這回合更難被打中`; }
+    flashUnit(casterId, "actor");
+    logBattle(`🌀 ${displayName(casterId)} 使用「${pd.name}」，氣勢一凝，蓄勢待發${dodgePart}。`);
   }
 
   m.carriedPotion = null; // 用掉了，魔藥格顯示「沒有魔藥」

@@ -87,6 +87,7 @@ function startNewDive(foodChoice, potionChoice, startLayer) {
       guardActive: false,
       chargeReady: false,
       stunTurns: 0,
+      confuseTurns: 0, // 混亂（第三層花尾）：>0 時該角色下個回合自動亂行動，玩家不能操作
       shield: 0,
       dmgBuffNextAttack: 0, // K_輕靈：下次攻擊傷害+%，消耗於該角色下次造成傷害時
       chargeMultiplier: 1, // V_蓄力：下次任意攻擊傷害×N，消耗於該角色下次造成傷害時
