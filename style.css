@@ -258,6 +258,36 @@ body {
 .relic-slot-card.empty.placeable { cursor: pointer; border-color: #4fa8d8; color: #4fa8d8; }
 .relic-slot-icon { display: block; font-size: 16px; }
 .relic-slot-name { display: block; margin-top: 2px; }
+/* equipped 槽用分類色的邊框（顏色由 inline style border-color 指定）：加一點外光更好認 */
+.relic-slot-card.equipped { border-width: 2px; }
+
+/* ---- 技能遺物頁：分類篩選 / 搜尋 / 未裝備遺物清單 ---- */
+.relic-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 8px; }
+.relic-filter-btn {
+  background: #1a1d24; border: 1px solid #3a3f4b; color: #c9d1d9;
+  border-radius: 14px; padding: 4px 12px; font-size: 13px; cursor: pointer;
+  transition: all 0.15s ease;
+}
+.relic-filter-btn:hover { border-color: #4fa8d8; }
+.relic-filter-btn.active { background: #22303c; border-color: #4fa8d8; color: #fff; font-weight: bold; }
+.relic-search {
+  width: 100%; box-sizing: border-box; margin-bottom: 10px;
+  background: #0f1218; border: 1px solid #3a3f4b; color: #e6edf3;
+  border-radius: 8px; padding: 8px 12px; font-size: 14px;
+}
+.relic-search:focus { outline: none; border-color: #4fa8d8; }
+.relic-inv-list { display: flex; flex-direction: column; gap: 8px; }
+.relic-inv-card {
+  background: #14171d; border: 1px solid #2d333b; border-left: 4px solid #888;
+  border-radius: 8px; padding: 9px 12px; cursor: pointer; transition: all 0.15s ease;
+}
+.relic-inv-card:hover { background: #1b2028; border-left-width: 6px; }
+.relic-inv-card.disabled { opacity: 0.45; cursor: not-allowed; }
+.relic-inv-card.disabled:hover { background: #14171d; border-left-width: 4px; }
+.relic-cat-tag {
+  display: inline-block; color: #fff; font-size: 11px; font-weight: bold;
+  padding: 1px 8px; border-radius: 10px; margin-left: 4px; vertical-align: middle;
+}
 
 /* 血條/經驗條共用軌道 */
 .bar-track {

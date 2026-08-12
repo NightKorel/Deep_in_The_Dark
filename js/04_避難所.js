@@ -28,6 +28,7 @@ function showShelterScreen() {
   // L 救出後：每次回到避難所自動把補血藥補滿（L 負責後勤，補血藥材料現成、免費），玩家不必再花潛晶買。
   if (gameState.storyFlags.lRescued) gameState.potions = POTION_MAX;
   checkAchievements(); // 回避難所時統一檢查一次成就（等級/強化/潛晶/圖鑑/救出L等被動條件）
+  flushRelicIntro();   // 若剛拿到第一個遺物、當時在戰鬥中沒播成，回到避難所時補播 K 的解說
   showScreen(`
     <h2 class="screen-title">避難所</h2>
     <p class="dim">裂谷中的一處平台，兩個簡陋的棚子搭在一起。</p>
@@ -138,7 +139,7 @@ function showHomeScreen() {
     <h2 class="screen-title">家</h2>
     <div class="card">
       <div class="menu-item" onclick="showCookingScreen()">🍲 煮飯</div>
-      <div class="menu-item" onclick="showSkillManagementScreen()">📖 技能管理</div>
+      <div class="menu-item" onclick="showSkillManagementScreen()">📖 技能遺物</div>
       <div class="menu-item" onclick="showCodexScreen()">📚 圖鑑</div>
       <div class="menu-item" onclick="showDepartScreen()">🎒 整備出發</div>
     </div>
@@ -299,23 +300,30 @@ function cookFood(foodId, rare) {
   showCookingScreen();
 }
 
-// ---- 技能管理 ----
+// ---- 技能遺物（技能管理＋遺物裝備，2026-08-12 合併） ----
+// 遺物裝備篩選/搜尋的暫存狀態（只是介面狀態，不用存檔）。
+let relicFilterCat = "all";
+let relicSearchText = "";
 
 function showSkillManagementScreen() {
   let rows = SHELTER_PARTY_IDS.map((id) => {
     let c = CHARACTERS[id];
     let name = id === "主角" ? (gameState.playerName || "你") : c.name;
-    return `<div class="menu-item" onclick="showSkillManagementForChar('${id}')">${c.icon} ${name}</div>`;
+    let relicCount = (gameState.characters[id].relics || []).length;
+    return `<div class="menu-item" onclick="showSkillManagementForChar('${id}')">${c.icon} ${name} <span class="dim">（遺物 ${relicCount}/${RELIC_MAX_PER_CHARACTER}）</span></div>`;
   }).join("");
+  let invCount = inventoryRelicIds().length;
   showScreen(`
-    <h2 class="screen-title">技能管理</h2>
-    <p class="dim">選一個角色查看技能池，已裝備的技能會高亮。</p>
+    <h2 class="screen-title">技能遺物</h2>
+    <p class="dim">選一個角色管理技能與遺物。目前有 ${invCount} 個未裝備的遺物可以分配。</p>
     <div class="card">${rows}</div>
     <button class="action-btn secondary" onclick="showHomeScreen()">返回</button>
   `, { withTopbar: true });
 }
 
 function showSkillManagementForChar(charId) {
+  relicFilterCat = "all"; // 每次進角色頁重置篩選/搜尋，免得沿用上一個角色的狀態造成困惑
+  relicSearchText = "";
   let c = CHARACTERS[charId];
   let name = charId === "主角" ? (gameState.playerName || "你") : c.name;
   let lv = getCharacterLevel(charId);
@@ -339,11 +347,116 @@ function showSkillManagementForChar(charId) {
   }).join("");
 
   showScreen(`
-    <h2 class="screen-title">${c.icon} ${name} 的技能</h2>
+    <h2 class="screen-title">${c.icon} ${name} 的技能與遺物</h2>
     <p class="dim">出征前最多裝備4個技能，深潛中不可更換。</p>
     <div class="card">${rows}</div>
+    ${relicSectionHtml(charId)}
     <button class="action-btn secondary" onclick="showSkillManagementScreen()">返回</button>
   `, { withTopbar: true });
+}
+
+// ---- 遺物裝備區塊（技能遺物頁面的下半段） ----
+// 遺物是永久的：裝上去就一直在，除非在這裡拆下來。每人最多 RELIC_MAX_PER_CHARACTER 個。
+// 未出戰的角色也能裝，但只有出戰才會生效（遺物本來就作用在該角色身上）。
+function relicSectionHtml(charId) {
+  let equipped = gameState.characters[charId].relics || [];
+  // 三個遺物槽
+  let slots = "";
+  for (let i = 0; i < RELIC_MAX_PER_CHARACTER; i++) {
+    let rid = equipped[i];
+    if (rid) {
+      let r = RELICS.find((x) => x.id === rid);
+      let cat = RELIC_CATEGORIES[r.cat] || { color: "#888", label: "", icon: "🔸" };
+      slots += `<div class="relic-slot-card equipped" style="border-color:${cat.color};" title="${r.desc}（點擊拆下）" onclick="unequipRelicFromChar('${charId}', '${rid}')">
+        <span class="relic-slot-icon">${cat.icon}</span>
+        <span class="relic-slot-name">${r.name}</span>
+      </div>`;
+    } else {
+      slots += `<div class="relic-slot-card empty" title="空槽">空</div>`;
+    }
+  }
+
+  // 分類篩選按鈕（點按鈕只重畫清單、更新 active，不整頁重繪，才不會清掉搜尋文字）
+  let filterBtns = `<button class="relic-filter-btn${relicFilterCat === "all" ? " active" : ""}" onclick="setRelicFilter(this,'${charId}','all')">全部</button>`;
+  Object.keys(RELIC_CATEGORIES).forEach((key) => {
+    let cat = RELIC_CATEGORIES[key];
+    filterBtns += `<button class="relic-filter-btn${relicFilterCat === key ? " active" : ""}" style="border-color:${cat.color};" onclick="setRelicFilter(this,'${charId}','${key}')">${cat.icon} ${cat.label}</button>`;
+  });
+
+  return `<div class="card">
+    <h3>遺物（${equipped.length}/${RELIC_MAX_PER_CHARACTER}）</h3>
+    <div class="relic-slot-row">${slots}</div>
+    <p class="dim" style="margin-top:10px;">未裝備的遺物（點擊裝到這個角色身上）：</p>
+    <div class="relic-filter-row">${filterBtns}</div>
+    <input id="relic-search" class="relic-search" type="text" placeholder="🔍 搜尋遺物名字或效果…" value="${relicSearchText}" oninput="onRelicSearchInput('${charId}', this.value)">
+    <div id="relic-inv-list" class="relic-inv-list">${relicInventoryHtml(charId)}</div>
+  </div>`;
+}
+
+// 一個遺物是否通過目前的分類 + 搜尋文字篩選
+function relicPassesFilter(r) {
+  if (relicFilterCat !== "all" && r.cat !== relicFilterCat) return false;
+  let q = relicSearchText.trim();
+  if (q && !(r.name.includes(q) || r.desc.includes(q))) return false;
+  return true;
+}
+
+// 未裝備遺物清單的 HTML（依分類/搜尋過濾）
+function relicInventoryHtml(charId) {
+  let charFull = (gameState.characters[charId].relics || []).length >= RELIC_MAX_PER_CHARACTER;
+  let list = inventoryRelicIds()
+    .map((rid) => RELICS.find((r) => r.id === rid))
+    .filter((r) => r && relicPassesFilter(r));
+  if (list.length === 0) {
+    return `<p class="dim">（沒有符合的未裝備遺物。達成更多成就可以拿到新遺物。）</p>`;
+  }
+  return list.map((r) => {
+    let cat = RELIC_CATEGORIES[r.cat] || { color: "#888", label: "", icon: "🔸" };
+    let clickable = !charFull;
+    return `<div class="relic-inv-card${clickable ? "" : " disabled"}" style="border-left-color:${cat.color};"
+      title="${clickable ? "點擊裝到這個角色身上" : "這個角色的遺物槽已滿"}"
+      ${clickable ? `onclick="equipRelicToChar('${charId}', '${r.id}')"` : ""}>
+      <div><strong style="color:${cat.color};">${cat.icon}</strong> <strong>${r.name}</strong> <span class="relic-cat-tag" style="background:${cat.color};">${cat.label}</span></div>
+      <div class="dim">${r.desc}</div>
+    </div>`;
+  }).join("");
+}
+
+// 只重繪未裝備清單（不整頁重繪，才不會讓搜尋框失焦）
+function refreshRelicInventory(charId) {
+  let el = document.getElementById("relic-inv-list");
+  if (el) el.innerHTML = relicInventoryHtml(charId);
+}
+
+function setRelicFilter(btn, charId, cat) {
+  relicFilterCat = cat;
+  document.querySelectorAll(".relic-filter-row .relic-filter-btn").forEach((b) => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+  refreshRelicInventory(charId);
+}
+
+function onRelicSearchInput(charId, val) {
+  relicSearchText = val;
+  refreshRelicInventory(charId);
+}
+
+function equipRelicToChar(charId, relicId) {
+  let arr = gameState.characters[charId].relics;
+  if (arr.length >= RELIC_MAX_PER_CHARACTER) { systemToast("這個角色的遺物槽已經滿了。", true); return; }
+  if (!inventoryRelicIds().includes(relicId)) return; // 保險：只能裝「已擁有且未裝備」的遺物
+  arr.push(relicId);
+  gameState.stats.relicsEquipped++;
+  checkAchievements();
+  flushRelicIntro();
+  showSkillManagementForChar(charId); // 槽位變了，整頁重繪
+}
+
+function unequipRelicFromChar(charId, relicId) {
+  let arr = gameState.characters[charId].relics;
+  let idx = arr.indexOf(relicId);
+  if (idx === -1) return;
+  arr.splice(idx, 1);
+  showSkillManagementForChar(charId);
 }
 
 // charId：用來即時計算當前武器/裝備等級後的實際數值，不傳的話顯示未強化的基礎數值
@@ -588,7 +701,7 @@ function departLayerChoiceHtml() {
   if (!unlocked.includes(last)) last = unlocked[0];
   let selMeta = LAYERS_META[last] || { name: "", subtitle: `第${last}圈層` };
   let skipInfo = last > 1
-    ? `<p class="dim">選 ${selMeta.subtitle}＝略過前 ${last - 1} 層：補償 ${(last - 1) * SKIP_LAYER_BUFF_COMP} 個隨機增益＋${(last - 1) * SKIP_LAYER_RELIC_COMP} 個隨機遺物，但略過那些層的經驗、潛晶、食材都拿不到。</p>`
+    ? `<p class="dim">選 ${selMeta.subtitle}＝略過前 ${last - 1} 層：直接從這一層開始，但略過那些層的經驗、潛晶、食材都拿不到（不再有跳關補償）。</p>`
     : `<p class="dim">從第一層開始，完整拿到每一層的收穫。</p>`;
   let options = unlocked.map((ly) => {
     let meta = LAYERS_META[ly] || { name: "", subtitle: `第${ly}圈層` };

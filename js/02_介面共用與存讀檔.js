@@ -26,16 +26,19 @@ let gameState = {
     metH: false, // 是否已經在節點賭場遇過H（解鎖避難所賭場的條件之一）
     layer2Cleared: false, // 是否已通關第二圈層（解鎖避難所賭場的條件之一）
     potionApplyUnlocked: false, // 是否已解鎖補血藥「外敷」用法（第二層Boss戰後L研發出來的新藥）
+    firstRelicSeen: false, // 是否已經播過「第一次拿到遺物時 K 解釋潛淵怪現象」的台詞（只播一次）
   },
   bestiary: {}, // { 凝膠: true, ... } 是否已經遇過該種怪物
   discoveredNodeTypes: {}, // { monster: true, oddity: true, ... } 是否已經遇過該種節點類型（沒遇過顯示？？？）
   discoveredDishes: {}, // { 彈牙凍飲: true, ... } 曾經做過/取得過的料理（圖鑑用，做過就永久記錄）
   discoveredPotions: {}, // { 腐蝕彈: true, ... } 曾經製作過的魔藥（圖鑑用）
   characters: {
-    主角: { level: 1, exp: 0, weaponLv: 0, armorLv: 0 },
-    K: { level: 1, exp: 0, weaponLv: 0, armorLv: 0 },
-    V: { level: 1, exp: 0, weaponLv: 0, armorLv: 0 },
-    L: { level: 1, exp: 0, weaponLv: 0, armorLv: 0 },
+    // relics：這個角色永久裝著的遺物 id 陣列（最多 RELIC_MAX_PER_CHARACTER 個）。
+    // 遺物是永久的，裝上去就一直在、除非在「技能遺物」頁面拆下來（不像舊版單趟深潛就重置）。
+    主角: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
+    K: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
+    V: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
+    L: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
   },
   rawFoodInventory: {}, // { 凝膠凍: {normal: 0, rare: 0}, ... }
   cookedInventory: {}, // { 彈牙凍飲: {normal: 0, rare: 0}, ... }
@@ -668,6 +671,20 @@ function applySaveData(data) {
         if (typeof c.exp === "number") gameState.characters[id].exp = Math.max(0, c.exp);
         if (typeof c.weaponLv === "number") gameState.characters[id].weaponLv = Math.max(0, Math.round(c.weaponLv));
         if (typeof c.armorLv === "number") gameState.characters[id].armorLv = Math.max(0, Math.round(c.armorLv));
+        gameState.characters[id].relics = []; // 先清空，下面統一重建（同一件遺物不會同時裝在兩個角色身上）
+      });
+      // 遺物讀檔：只保留合法 id、去重（跨角色也不重複）、每人上限 RELIC_MAX_PER_CHARACTER。舊存檔沒有 relics 就都空著。
+      let usedRelicIds = {};
+      Object.keys(gameState.characters).forEach((id) => {
+        let c = data.characters[id];
+        if (!c || !Array.isArray(c.relics)) return;
+        c.relics.forEach((rid) => {
+          if (gameState.characters[id].relics.length >= RELIC_MAX_PER_CHARACTER) return;
+          if (usedRelicIds[rid]) return;
+          if (!RELICS.some((r) => r.id === rid)) return;
+          usedRelicIds[rid] = true;
+          gameState.characters[id].relics.push(rid);
+        });
       });
     }
   } catch (e) {}

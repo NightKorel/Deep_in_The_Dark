@@ -102,16 +102,15 @@ function beginRound() {
   advanceAllyTurn();
 }
 
-// 基礎順序固定是 PARTY_ORDER_LAYER1(K→主角→V)，持有「急速鰭」遺物的角色會往前提一位
-// （跟前一位交換），依基礎順序由前到後依序套用，同時有多人持有時會連鎖往前擠。
+// 基礎順序固定是 PARTY_ORDER_LAYER1(K→主角→V)，帶有「行動順序提前」類遺物的角色會往前提。
+// 提前的格數 = 該角色身上這類遺物的加總（turn-order-shift）。用「基礎位置 − 提前格數」當排序權重、
+// 穩定排序：權重小的排前面，平手時維持原本順序。這樣多人持有、或單人提前多格都能正確處理。
 function buildAllyTurnQueue() {
-  let queue = PARTY_ORDER_LAYER1.filter((id) => !activeDive.party[id].fallen);
-  queue.forEach((_, i) => {
-    if (i === 0) return;
-    let m = activeDive.party[queue[i]];
-    if (m.relics.includes("急速鰭")) [queue[i - 1], queue[i]] = [queue[i], queue[i - 1]];
-  });
-  return queue;
+  let base = PARTY_ORDER_LAYER1.filter((id) => !activeDive.party[id].fallen);
+  return base
+    .map((id, idx) => ({ id, idx, pri: idx - relicSum(activeDive.party[id], "turn-order-shift") }))
+    .sort((a, b) => (a.pri - b.pri) || (a.idx - b.idx))
+    .map((x) => x.id);
 }
 
 // 對我方角色套用治療，並處理「中毒→治療減半」。回傳實際回復的血量（給log顯示用）。
@@ -470,7 +469,7 @@ function damageCalc(dmgRange, opts) {
   let dmg = randInt(dmgRange[0], dmgRange[1]);
 
   if (opts.attacker && opts.attacker.chargeReady) {
-    let bonus = opts.attacker.relics && opts.attacker.relics.includes("蓄能核") ? 0.30 : CHARGE_BONUS;
+    let bonus = relicMax(opts.attacker, "charge-bonus-override", CHARGE_BONUS);
     dmg = Math.ceil(dmg * (1 + bonus));
     opts.attacker.chargeReady = false;
   }
@@ -569,7 +568,7 @@ function dealDamageToAlly(enemy, allyId, dmgRange) {
 
 function getAllyDamageTakenReduction(m) {
   let reduction = 0;
-  if (m.relics.includes("厚殼甲")) reduction += 0.10;
+  reduction += -relicSum(m, "damage-taken-percent"); // 遺物的減傷值存成負數（-0.08），取負號變成正的減傷比例
   if (m.foodBuffActive && m.foodBuffActive.type === "damage-reduction-percent") reduction += m.foodBuffActive.value;
   if (m.damageReductionDuration > 0) reduction += m.damageReduction; // L_冰盾
   return reduction;
@@ -579,11 +578,11 @@ function getAllyDamageTakenReduction(m) {
 function dealDamageToEnemy(casterId, enemy, dmgRange, opts) {
   opts = opts || {};
   let m = activeDive.party[casterId];
-  let critBonus = (m.relics.includes("裂瞳珠") ? 0.05 : 0) + (m.critBuffNextBattle || 0) + (m.multiBattleCritRemaining > 0 ? m.multiBattleCritBonus : 0)
+  let critBonus = relicSum(m, "crit-rate-add") + (m.critBuffNextBattle || 0) + (m.multiBattleCritRemaining > 0 ? m.multiBattleCritBonus : 0)
     + (m.foodBuffActive && m.foodBuffActive.type === "crit-percent" ? m.foodBuffActive.value : 0); // 第二層料理「炙烤兔腿」：爆擊率
   let dmgPercent = 0;
-  if (opts.isNormalAttack && m.relics.includes("尖銳碎片")) dmgPercent += 0.15;
-  if (opts.isSkill && m.relics.includes("銳石")) dmgPercent += 0.15;
+  if (opts.isNormalAttack) dmgPercent += relicSum(m, "normal-atk-percent");
+  if (opts.isSkill) dmgPercent += relicSum(m, "skill-dmg-percent");
   let foodPercent = m.foodBuffActive && m.foodBuffActive.type === "damage-percent" ? m.foodBuffActive.value : 0;
 
   let result = damageCalc(dmgRange, {
@@ -693,7 +692,7 @@ function resolveNormalAttack(casterId, targetUid) {
   let mult = getCharacterWeaponMultiplier(casterId);
   let range = [Math.max(1, Math.ceil(c.atkRange[0] * mult)), Math.max(1, Math.ceil(c.atkRange[1] * mult))];
 
-  let doubleHit = m.relics.includes("雙擊環") && chance(0.20);
+  let doubleHit = chance(relicSum(m, "normal-atk-double-chance"));
   let totalHits = hits + (doubleHit ? hits : 0);
   flashUnit(casterId, "actor");
   let results = [];
@@ -710,7 +709,7 @@ function resolveNormalAttack(casterId, targetUid) {
 function resolveSkillNoTarget(casterId, skillId, targetId) {
   let m = activeDive.party[casterId];
   let skill = SKILLS[skillId];
-  let noCost = m.relics.includes("回響石") && chance(0.10);
+  let noCost = chance(relicSum(m, "skill-no-cost-chance"));
   if (!noCost) m.skillUses[skillId]--;
 
   if (skill.type === "attack") {
@@ -912,7 +911,8 @@ function reviveFallenAllies() {
     let m = activeDive.party[id];
     if (!m.fallen) return;
     m.fallen = false;
-    m.hp = m.relics.includes("韌皮帶") ? Math.ceil(m.maxHp * 0.30) : 1;
+    let reviveHeal = relicMax(m, "revive-heal-percent", 0);
+    m.hp = reviveHeal > 0 ? Math.ceil(m.maxHp * reviveHeal) : 1;
     logBattle(`${displayName(id)} 搖搖晃晃地站了起來。`);
   });
 }
@@ -980,7 +980,8 @@ function handleBattleWin() {
 
   SHELTER_PARTY_IDS.forEach((id) => {
     let m = activeDive.party[id];
-    if (m.relics.includes("生命苔")) m.hp = Math.min(m.maxHp, m.hp + Math.ceil(m.maxHp * 0.15));
+    let postHeal = relicSum(m, "post-battle-heal-percent");
+    if (postHeal > 0) m.hp = Math.min(m.maxHp, m.hp + Math.ceil(m.maxHp * postHeal));
   });
 
   clearBattleTransientBuffs();
@@ -992,21 +993,21 @@ function handleBattleWin() {
   setTimeout(() => endBattle("win", { crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds }), 900);
 }
 
-// 混戰中打死寶箱怪的額外獎勵，疊加在原本的戰鬥獎勵之上：50%潛晶大獎、50%潛晶小獎+1個隨機遺物
+// 混戰中打死寶箱怪的額外獎勵，疊加在原本的戰鬥獎勵之上：
+// 50% 噴一大筆潛晶；50% 噴小筆潛晶 + 一個隨機增益（遺物改成成就獎勵後，這裡不再噴遺物）。
 function resolveMimicBonus(crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds) {
   if (chance(0.5)) {
     let bonus = randInt(MIMIC_BONUS_CRYSTAL_BIG[0], MIMIC_BONUS_CRYSTAL_BIG[1]);
     crystalEarned += bonus;
     systemToast(`💎 寶箱怪噴出一大筆潛晶！+${bonus}`);
-    endBattle("win", { crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds });
   } else {
     let bonus = randInt(MIMIC_BONUS_CRYSTAL_SMALL[0], MIMIC_BONUS_CRYSTAL_SMALL[1]);
     crystalEarned += bonus;
-    systemToast(`💎 寶箱怪噴出了 ${bonus} 顆潛晶，還有一個遺物！`);
-    grantRandomRelic(() => {
-      endBattle("win", { crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds });
-    });
+    systemToast(`💎 寶箱怪噴出了 ${bonus} 顆潛晶，還有一絲能量！`);
+    let available = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
+    if (available.length > 0) grantGlobalBuff(pickRandom(available));
   }
+  endBattle("win", { crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds });
 }
 
 function handleAllEscaped() {
@@ -1154,7 +1155,7 @@ function renderBattleScreen(actingAllyId) {
       statusHtml += statusIconHtml("🛡️格擋", `格擋中：受到的傷害-${Math.round(GUARD_DAMAGE_REDUCTION * 100)}%，被攻擊命中一次後解除`);
     }
     if (m.chargeReady) {
-      let bonus = m.relics.includes("蓄能核") ? 0.30 : CHARGE_BONUS;
+      let bonus = relicMax(m, "charge-bonus-override", CHARGE_BONUS);
       statusHtml += statusIconHtml("⚡蓄勢", `蓄勢：下次攻擊傷害+${Math.round(bonus * 100)}%`);
     }
     if (m.hotDuration > 0) {

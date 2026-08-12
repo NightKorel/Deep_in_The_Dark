@@ -183,7 +183,7 @@ const GUARD_DAMAGE_REDUCTION = 0.30;
 const BASE_CRIT_RATE = 0.05;
 const BASE_CRIT_MULT = 2;
 const DAMAGE_VARIANCE = 0.15; // ±15%
-const CHARGE_BONUS = 0.20; // 蓄勢 +20%（蓄能核遺物可提升到30%）
+const CHARGE_BONUS = 0.20; // 蓄勢 +20%（「岩蚺之牙」等 charge-bonus-override 遺物可提升到30%）
 const FLEE_SUCCESS_RATE = 0.60;
 
 // 中毒（第二層新狀態）：持續3回合，期間受到的治療效果減半（不直接扣血）；
@@ -376,9 +376,7 @@ const LAYERS_META = {
   2: { layer: 2, name: "乾燥岩洞地帶", subtitle: "第二圈層" },
 };
 const MAX_LAYER = 2;
-// 選擇較深圈層時，每略過一個圈層補償：1 個隨機全局增益 + 2 個隨機遺物（見設計文件/後續圈層規劃.txt）。
-const SKIP_LAYER_BUFF_COMP = 1;
-const SKIP_LAYER_RELIC_COMP = 2;
+// （2026-08-12）納可拍板：選深層跳關「不再自動補償任何增益或遺物」，就單純跳關。舊的 SKIP_LAYER_*_COMP 已移除。
 const MIMIC_AMBUSH_CHANCE = 0.05; // 一般小怪戰鬥額外混入寶箱怪的機率（不佔原本2~3隻的名額，是多加的）
 
 // 每隻小怪的經驗值與潛晶掉落（第一圈層小怪戰鬥）
@@ -500,11 +498,11 @@ const COST_EXCHANGE_FOCUS_DMG_BONUS = 0.15; // 「補血藥換激昂」的下場
 const COST_EXCHANGE_CRIT_BONUS = 0.15; // 「犧牲換爆擊率」的加成
 const COST_EXCHANGE_CRIT_BATTLES = 2; // 「犧牲換爆擊率」持續場數
 const COST_EXCHANGE_OPTIONS = [
-  { id: "犧牲換遺物", label: "犧牲一名角色10%當前血量 → 獲得隨機遺物", effect: { type: "sacrifice-hp-for-relic", value: 0.10 } },
+  { id: "犧牲換增益", label: "犧牲一名角色10%當前血量 → 獲得隨機增益", effect: { type: "sacrifice-hp-for-buff", value: 0.10 } },
   { id: "潛晶換回血", label: "支付5潛晶 → 全隊回復30%血量", effect: { type: "pay-crystal-for-heal", cost: 5, healPercent: 0.30 } },
   { id: "料理換潛晶", label: "交出一份攜帶中的料理 → 獲得5~8潛晶", effect: { type: "trade-food-for-crystal", range: [5, 8] } },
   { id: "補血藥換激昂", label: `獻上2瓶補血藥 → 全隊獲得「激昂」，下場戰鬥傷害+${Math.round(COST_EXCHANGE_FOCUS_DMG_BONUS * 100)}%`, effect: { type: "trade-potions-for-dmg-buff", potionCost: 2, value: COST_EXCHANGE_FOCUS_DMG_BONUS } },
-  { id: "潛晶換選遺物", label: "支付8潛晶 → 從3個遺物中選1個", effect: { type: "pay-crystal-for-relic-choice", cost: 8 } },
+  { id: "潛晶換選增益", label: "支付8潛晶 → 從3個增益中選1個", effect: { type: "pay-crystal-for-buff-choice", cost: 8 } },
   { id: "犧牲換爆擊率", label: `獻出一名角色20%當前血量 → 該角色下${COST_EXCHANGE_CRIT_BATTLES}場戰鬥爆擊率+${Math.round(COST_EXCHANGE_CRIT_BONUS * 100)}%`, effect: { type: "sacrifice-hp-for-multi-battle-crit", value: 0.20, critBonus: COST_EXCHANGE_CRIT_BONUS, battles: COST_EXCHANGE_CRIT_BATTLES } },
 ];
 
@@ -525,7 +523,7 @@ const RANDOM_EVENTS = [
     { label: "不碰", effect: { type: "noop" } },
   ] },
   { id: "受困的旅人遺骸", name: "受困的旅人遺骸", desc: "牆邊有一具靠坐著的骸骨，懷裡還抱著一個包。手邊刻著幾個歪歪扭扭的字，但看不清了。", options: [
-    { label: "搜索包裹", effect: { type: "random-one-of", options: [{ type: "grant-relic" }, { type: "find-crystal", range: [3, 5] }, { type: "find-potion", range: [1, 2] }] } },
+    { label: "搜索包裹", effect: { type: "random-one-of", options: [{ type: "random-buff" }, { type: "find-crystal", range: [3, 5] }, { type: "find-potion", range: [1, 2] }] } },
     { label: "留下它", text: "你們默默走過。", effect: { type: "noop" } },
   ] },
   { id: "發光的裂縫", name: "發光的裂縫", desc: "牆面上有一道狹窄的裂縫，裡面透出微弱的光。手伸得進去，但看不到裡面有什麼。", options: [
@@ -550,7 +548,7 @@ const RANDOM_EVENTS = [
   { id: "小型儲藏", name: "發現小型儲藏", desc: "角落裡有一個被遺棄的小包。裡面還剩一些潛晶。", effect: { type: "find-crystal", range: [2, 4] } },
   { id: "漂流者的遺物", name: "漂流者的遺物", desc: "牆邊靠著一個空了的背包。裡面還有幾瓶沒打開的補血藥，夾層裡也藏著幾顆潛晶。", effect: { type: "compound", effects: [{ type: "find-potion", range: [1, 2] }, { type: "find-crystal", range: [1, 3] }] } },
   { id: "寧靜角落", name: "寧靜角落", desc: "這片區域異常安靜，腳步聲都變得柔和了。在這裡待了一會，呼吸順暢了些；角落的碎石堆裡還嵌著幾顆潛晶。", effect: { type: "compound", effects: [{ type: "heal-all-percent", value: 0.15 }, { type: "find-crystal", range: [2, 4] }] } },
-  { id: "地面塌陷", name: "地面塌陷", desc: "腳下一鬆——地面塌了一小塊。碎石刮傷了大家。不過裂縫裡有東西在發光。", effect: { type: "compound", effects: [{ type: "damage-all-flat", value: 2 }, { type: "grant-relic" }] } },
+  { id: "地面塌陷", name: "地面塌陷", desc: "腳下一鬆——地面塌了一小塊。碎石刮傷了大家。不過裂縫裡有東西在發光。", effect: { type: "compound", effects: [{ type: "damage-all-flat", value: 2 }, { type: "random-buff" }] } },
 
   // ---- 新增事件（有選擇）----
   { id: "迴音壁", name: "迴音壁", desc: "一面凹陷的岩壁把你的呼吸聲放大回傳。要不要對它喊點什麼？", options: [
@@ -575,17 +573,22 @@ const RANDOM_EVENTS = [
     { label: "攪散水面", text: "你伸手攪碎了倒影，水面回復平靜。什麼也沒發生……大概吧。", effect: { type: "noop" } },
   ] },
 
-  // ---- 增益／遺物互動事件（讓玩家會去在意自己身上有什麼 buff 與遺物）----
+  // ---- 增益互動事件（讓玩家會去在意自己身上有什麼 buff）----
+  // 註（2026-08-12）：遺物改成成就永久獎勵後，原本操作遺物的「遺物熔爐／遺物賭盤」已改成純增益版本，
+  // 不再有任何深潛中撿遺物或賭遺物的機制。
   { id: "共鳴殘響", name: "共鳴殘響", desc: "空氣裡有一種熟悉的震動——是你身上某個增益的迴響。它躁動著，似乎想換一種樣子。", options: [
     { label: "順著它變化（換一個增益）", text: "你放任那股震動流過全身。", effect: { type: "swap-random-buff" } },
     { label: "壓下這股躁動", effect: { type: "noop" } },
   ] },
-  { id: "遺物熔爐", name: "遺物熔爐", desc: "岩壁上有一處還在悶燒的凹槽，形狀剛好能塞進一件遺物。投進去的東西，會被重新塑形成別的模樣。", options: [
-    { label: "投入一件遺物重鑄", requiresOwnedRelic: true, text: "你挑了一件遺物投進凹槽，熱氣一捲，它化成了別的東西。", effect: { type: "reroll-random-relic" } },
+  { id: "增益熔爐", name: "增益熔爐", desc: "岩壁上有一處還在悶燒的凹槽，熱氣蒸騰。湊近時，你腦中浮現出三種不同的可能。", options: [
+    { label: "湊近火光淬鍊（3選1增益）", text: "你把手探近凹槽，熱氣裡的回響漸漸清晰。", effect: { type: "choose-one-of-three-buffs" } },
     { label: "不碰", effect: { type: "noop" } },
   ] },
-  { id: "遺物賭盤", name: "遺物賭盤", desc: "地面上刻著一個古怪的圖騰，中央的凹陷似乎在索求一件遺物，換取未知的東西。", options: [
-    { label: "獻上一件遺物賭一把", requiresOwnedRelic: true, text: "你摘下一件遺物，放進圖騰中央的凹陷。", effect: { type: "gamble-relic" } },
+  { id: "共鳴賭盤", name: "共鳴賭盤", desc: "地面上刻著一個古怪的圖騰，中央的凹陷嗡嗡作響，像在慫恿你賭一把運氣。", options: [
+    { label: "把手按上圖騰賭一把", outcomes: [
+      { chance: 0.5, text: "圖騰震動起來，兩道回響湧進你體內！", effect: { type: "compound", effects: [{ type: "random-buff" }, { type: "random-buff" }] } },
+      { chance: 0.5, text: "圖騰猛地反噬，一股尖銳的震波掃過全隊。", effect: { type: "damage-all-flat", value: 3 } },
+    ] },
     { label: "不理它", effect: { type: "noop" } },
   ] },
 ];
@@ -594,7 +597,8 @@ const RANDOM_EVENTS = [
 const TREASURE_CRYSTAL_RANGE = [3, 8];
 
 // ---------- 商人 💰（遺留物資，第一圈層第6格就有） ----------
-const SHOP_PRICES = { food: 3, relic: 10 };
+// 遺物改成成就獎勵後，商店不再賣遺物；改成賣「食材」與「增益」（增益是本趟深潛限定、睡覺後消失）。
+const SHOP_PRICES = { food: 3, buff: 8 };
 
 // ---------- 食材與料理 ----------
 const FOODS = {
@@ -664,20 +668,62 @@ const POTIONS = {
   },
 };
 
-// ---------- 遺物（個人裝備，🪎寶藏節點可獲得） ----------
+// ---------- 遺物（個人永久裝備；只能靠「達成成就」取得，一個成就對一個遺物） ----------
+// 新版遺物系統（2026-08-12 大改）：
+//   · 遺物是「永久的」——裝在角色身上就一直在，除非到「技能遺物」頁面拆下來；不再是單趟深潛用完就重置。
+//   · 來源只有一個：達成成就。ACHIEVEMENTS 裡每個成就都對應一個遺物（見 07_成就.js 的 relic 欄位）。
+//   · 每個角色最多裝 3 個。未出戰的角色也能裝，但只有實際出戰才會生效（遺物本來就是作用在該角色身上）。
+//   · 戰鬥效果採「資料驅動」：戰鬥碼用 relicSum()/relicMax() 掃角色身上的遺物即時計算，
+//     所以之後要加新遺物「只改這裡的資料」就好，不用再去動戰鬥碼（除非是全新的 effect.type）。
+//   · cat 決定分類與框色（見下方 RELIC_CATEGORIES）；desc 是給玩家看的效果說明。
+// 數值刻意壓得比舊版溫和一點：舊版遺物是單趟用完就沒，新版是永久 always-on、又可四人共 12 件，
+// 所以個別效果收斂一些，避免疊起來太誇張（納可授權自行抓平衡）。
+const RELIC_CATEGORIES = {
+  attack:  { label: "攻擊", color: "#d8564f", icon: "⚔️" },
+  defense: { label: "防禦", color: "#4fa8d8", icon: "🛡️" },
+  recover: { label: "回復", color: "#5bbf6a", icon: "💚" },
+  support: { label: "輔助", color: "#b07fd8", icon: "✴️" },
+};
 const RELICS = [
-  { id: "尖銳碎片", name: "尖銳碎片", desc: "攻擊傷害 +15%", effect: { type: "normal-atk-percent", value: 0.15 } },
-  { id: "回響石", name: "回響石", desc: "使用技能時10%機率不消耗次數", effect: { type: "skill-no-cost-chance", value: 0.10 } },
-  { id: "厚殼甲", name: "厚殼甲", desc: "受到傷害 -10%", effect: { type: "damage-taken-percent", value: -0.10 } },
-  { id: "銳石", name: "銳石", desc: "技能傷害 +15%", effect: { type: "skill-dmg-percent", value: 0.15 } },
-  { id: "急速鰭", name: "急速鰭", desc: "行動順序提前一位", effect: { type: "turn-order-shift", value: 1 } },
-  { id: "生命苔", name: "生命苔", desc: "每場戰鬥結束時回復15%最大血量", effect: { type: "post-battle-heal-percent", value: 0.15 } },
-  { id: "裂瞳珠", name: "裂瞳珠", desc: "爆擊率 +5%", effect: { type: "crit-rate-add", value: 0.05 } },
-  { id: "蓄能核", name: "蓄能核", desc: "蓄勢加成從20%提升到30%", effect: { type: "charge-bonus-override", value: 0.30 } },
-  { id: "韌皮帶", name: "韌皮帶", desc: "倒地後站起時回復30%血量而非1血", effect: { type: "revive-heal-percent", value: 0.30 } },
-  { id: "雙擊環", name: "雙擊環", desc: "普攻時20%機率攻擊兩次", effect: { type: "normal-atk-double-chance", value: 0.20 } },
+  { id: "初潛之勇", name: "初潛之勇", cat: "attack",  desc: "普攻傷害 +10%", effect: { type: "normal-atk-percent", value: 0.10 } },
+  { id: "重逢餘溫", name: "重逢餘溫", cat: "recover", desc: "每場戰鬥結束時回復12%最大血量", effect: { type: "post-battle-heal-percent", value: 0.12 } },
+  { id: "洋流羅盤", name: "洋流羅盤", cat: "support", desc: "行動順序提前一位", effect: { type: "turn-order-shift", value: 1 } },
+  { id: "疾手之爪", name: "疾手之爪", cat: "attack",  desc: "普攻時15%機率攻擊兩次", effect: { type: "normal-atk-double-chance", value: 0.15 } },
+  { id: "無瑕之盾", name: "無瑕之盾", cat: "defense", desc: "受到傷害 -8%", effect: { type: "damage-taken-percent", value: -0.08 } },
+  { id: "不熄餘燼", name: "不熄餘燼", cat: "defense", desc: "倒地後站起時回復25%血量而非1血", effect: { type: "revive-heal-percent", value: 0.25 } },
+  { id: "飽足護身", name: "飽足護身", cat: "recover", desc: "最大血量 +10%", effect: { type: "maxhp-percent", value: 0.10 } },
+  { id: "拾荒者之眼", name: "拾荒者之眼", cat: "support", desc: "使用技能時10%機率不消耗次數", effect: { type: "skill-no-cost-chance", value: 0.10 } },
+  { id: "潛晶碎鑽", name: "潛晶碎鑽", cat: "attack",  desc: "爆擊率 +5%", effect: { type: "crit-rate-add", value: 0.05 } },
+  { id: "熟練刻印", name: "熟練刻印", cat: "attack",  desc: "技能傷害 +12%", effect: { type: "skill-dmg-percent", value: 0.12 } },
+  { id: "精鍛核心", name: "精鍛核心", cat: "attack",  desc: "普攻傷害 +8%", effect: { type: "normal-atk-percent", value: 0.08 } },
+  { id: "岩蚺之牙", name: "岩蚺之牙", cat: "attack",  desc: "蓄勢加成從20%提升到30%", effect: { type: "charge-bonus-override", value: 0.30 } },
+  { id: "岩鱗甲片", name: "岩鱗甲片", cat: "defense", desc: "受到傷害 -6%", effect: { type: "damage-taken-percent", value: -0.06 } },
+  { id: "藥師之瓶", name: "藥師之瓶", cat: "recover", desc: "每場戰鬥結束時回復10%最大血量", effect: { type: "post-battle-heal-percent", value: 0.10 } },
+  { id: "饗宴之力", name: "饗宴之力", cat: "recover", desc: "最大血量 +8%", effect: { type: "maxhp-percent", value: 0.08 } },
+  { id: "老手護符", name: "老手護符", cat: "support", desc: "使用技能時8%機率不消耗次數", effect: { type: "skill-no-cost-chance", value: 0.08 } },
+  { id: "萬物歸一", name: "萬物歸一", cat: "attack",  desc: "技能傷害 +10%", effect: { type: "skill-dmg-percent", value: 0.10 } },
 ];
-const RELIC_MAX_PER_CHARACTER = 5;
+const RELIC_MAX_PER_CHARACTER = 3;
+// 依 effect.type 掃一個角色身上所有遺物、把同型效果的 value 加總（給戰鬥碼即時計算用）。
+// combatant 沒有 relics（例如敵人）或沒裝任何該型遺物時回傳 0，呼叫端可安心相加。
+function relicSum(combatant, type) {
+  if (!combatant || !combatant.relics) return 0;
+  let s = 0;
+  combatant.relics.forEach((rid) => {
+    let r = RELICS.find((x) => x.id === rid);
+    if (r && r.effect.type === type) s += r.effect.value;
+  });
+  return s;
+}
+// 「覆蓋型」效果（例如蓄勢加成、倒地回血）取身上該型遺物的最大值，跟 base 比較後取大的。
+function relicMax(combatant, type, base) {
+  let v = base;
+  if (combatant && combatant.relics) combatant.relics.forEach((rid) => {
+    let r = RELICS.find((x) => x.id === rid);
+    if (r && r.effect.type === type && r.effect.value > v) v = r.effect.value;
+  });
+  return v;
+}
 
 // ---------- 增益效果（全局，睡覺後消失） ----------
 const GLOBAL_BUFFS = [
