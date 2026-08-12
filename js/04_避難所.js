@@ -209,6 +209,12 @@ function showCodexScreen() {
   `, { withTopbar: true });
 }
 
+// 圖鑑條目的「該層主題色左框」：讓料理/魔藥/怪物條目一眼看出屬於哪個圈層（納可要求）。
+function codexFrameStyle(layer) {
+  let c = getLayerThemeColor(layer);
+  return c ? `border-left:4px solid ${c}; padding-left:11px;` : "";
+}
+
 function showMonsterCodex() {
   let met = Object.keys(MONSTERS).filter((mid) => gameState.bestiary[mid]);
   let body = met.length === 0
@@ -224,7 +230,7 @@ function showMonsterCodex() {
         // 同名去重（避免多個 isBasic 都變「攻擊」重複顯示）
         skillNames = skillNames.filter((n, i) => skillNames.indexOf(n) === i);
         let tag = m.isBoss ? ` <span class="tag">Boss</span>` : "";
-        return `<div class="menu-item" style="cursor:default;">
+        return `<div class="menu-item" style="cursor:default; ${codexFrameStyle(getMonsterLayer(mid))}">
           <strong>${m.icon} ${m.name}</strong>${tag}
           <div class="dim">${m.codex || "圖鑑待補。"}</div>
           <div class="dim">技能：${skillNames.join("、") || "—"}</div>
@@ -246,7 +252,7 @@ function showDishCodex() {
         if (!food) return "";
         let normalDesc = foodBuffDescForDisplay(food.buff.type, food.buff.value);
         let rareDesc = foodBuffDescForDisplay(food.buff.type, food.buff.rareValue);
-        return `<div class="menu-item" style="cursor:default;">
+        return `<div class="menu-item" style="cursor:default; ${codexFrameStyle(getFoodLayer(food.id))}">
           <strong>🍲 ${food.dishName}</strong> <span class="dim">← ${food.name}</span>
           <div class="dim">${food.flavorText}</div>
           <div class="dim">一般：${normalDesc}｜稀有：${rareDesc}</div>
@@ -266,7 +272,7 @@ function showPotionCodex() {
     : discovered.map((pid) => {
         let p = POTIONS[pid];
         if (!p) return "";
-        return `<div class="menu-item" style="cursor:default;">
+        return `<div class="menu-item" style="cursor:default; ${codexFrameStyle(getHerbLayer(p.herbId))}">
           <strong>${p.icon} ${p.name}</strong>
           <div class="dim">${p.desc}</div>
           <div class="dim">一般：${potionEffectDesc(p, false)}｜稀有：${potionEffectDesc(p, true)}</div>

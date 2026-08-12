@@ -21,6 +21,25 @@ function getLayerMonsterPool(layer) {
 function getLayerBoss(layer) {
   return LAYER_BOSS[layer] || "島鯨";
 }
+// 某隻怪屬於哪個圈層（掃各層怪物池＋各層 Boss）；找不到回 0。給圖鑑框色等視覺用。
+function getMonsterLayer(mid) {
+  for (let ly in LAYER_MONSTER_POOLS) if (LAYER_MONSTER_POOLS[ly].includes(mid)) return Number(ly);
+  for (let ly in LAYER_BOSS) if (LAYER_BOSS[ly] === mid) return Number(ly);
+  return 0;
+}
+// 圈層主題色（沒有回 null）。
+function getLayerThemeColor(layer) {
+  return (LAYERS_META[layer] && LAYERS_META[layer].themeColor) || null;
+}
+// 食材／藥材 id → 掉落牠的來源怪 → 圈層（找不到回 0）。
+function getFoodLayer(foodId) {
+  for (let mid in MONSTERS) if (MONSTERS[mid].foodId === foodId) return getMonsterLayer(mid);
+  return 0;
+}
+function getHerbLayer(herbId) {
+  for (let mid in MONSTERS) if (MONSTERS[mid].herbId === herbId) return getMonsterLayer(mid);
+  return 0;
+}
 // 目前已解鎖、可作為出發起點的圈層清單。第一層永遠可選；通關第一層（救出 L）後解鎖第二層；
 // 通關第二層（layer2Cleared）後解鎖第三層。
 function getUnlockedLayers() {
