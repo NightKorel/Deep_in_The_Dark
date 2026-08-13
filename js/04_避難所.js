@@ -1,6 +1,6 @@
 // ========================================
 // 潛淵 - 避難所畫面
-// 工坊(V)：強化武器/裝備　家(K)：煮飯/技能管理/整備出發/改名/補充補血藥　煉藥站(L)：救出後解鎖
+// 工坊(V)：升歷練/解鎖技能　家(K)：煮飯/技能裝備/整備出發/改名/補充補血藥　煉藥站(L)：救出後解鎖
 // ========================================
 
 // 固定小隊，L救出來後會被syncLRoster()/handleBossVictory()動態push進來，不是單純的常數
@@ -10,13 +10,13 @@ function shelterRosterHtml() {
   return SHELTER_PARTY_IDS.map((id) => {
     let c = CHARACTERS[id];
     let name = id === "主角" ? (gameState.playerName || "你") : c.name;
-    let lv = getCharacterLevel(id);
+    let lv = getTrainLevel(id);
     let atk = (c.baseAtk * getCharacterWeaponMultiplier(id)).toFixed(1);
     let hp = getCharacterMaxHp(id);
     return `<div class="roster-card" style="--char-color:${getCharacterColor(id)};">
       <div class="roster-avatar">${c.icon}</div>
       <div class="roster-info">
-        <div class="roster-name">${name} <span class="dim">Lv.${lv}</span></div>
+        <div class="roster-name">${name} <span class="dim">歷練 ${lv}</span></div>
         <div class="dim">武器：${c.weaponName}（攻擊力 ${atk}） ／ 血量 ${hp}</div>
       </div>
     </div>`;
@@ -56,7 +56,7 @@ function showShelterScreen() {
       <button class="building-btn" onclick="showWorkshopScreen()">
         <span class="building-icon">🔨</span>
         <span class="building-name">工坊</span>
-        <div class="dim">${gameState.storyFlags.lRescued ? "V、L 負責 · 強化裝備／魔藥間製藥" : "V 負責 · 強化武器與裝備"}</div>
+        <div class="dim">${gameState.storyFlags.lRescued ? "V、L 負責 · 歷練與技能／魔藥間製藥" : "V 負責 · 歷練與技能解鎖"}</div>
       </button>
       <button class="building-btn" onclick="showHomeScreen()">
         <span class="building-icon">🏕️</span>
@@ -92,100 +92,122 @@ function showWorkshopScreen() {
   showScreen(`
     <h2 class="screen-title">工坊</h2>
     <div class="card">
-      <div class="menu-item" onclick="showWorkshopUpgradeScreen()">⚔️🛡️ 強化裝備（武器＋防具）</div>
+      <div class="menu-item" onclick="showWorkshopUpgradeScreen()">✨ 歷練與技能（升歷練／解鎖技能）</div>
       ${potionRoomItem}
     </div>
     <button class="action-btn secondary" onclick="showShelterScreen()">返回避難所</button>
   `, { withTopbar: true });
 }
 
-// 武器＋裝備合併成同一頁（納可要求）：每個角色一張卡，武器、防具各一個強化按鈕；頂部有「一鍵升級」。
+// 歷練與技能頁（成長系統精簡版）：每個角色一張卡——上半「升歷練」（帶動攻擊/血量），下半「解鎖技能」（花潛晶）。
+// 頂部保留「一鍵升歷練」的便利鈕（盡量花光潛晶，優先升歷練最低的人）。
 function showWorkshopUpgradeScreen() {
   let rows = SHELTER_PARTY_IDS.map((id) => {
     let c = CHARACTERS[id];
     let name = id === "主角" ? (gameState.playerName || "你") : c.name;
     let cur = gameState.characters[id];
+    let tLv = cur.trainLevel;
 
-    // 武器
-    let wLv = cur.weaponLv, wCost = getUpgradeCost(wLv);
-    let wCur = (c.baseAtk * getCharacterWeaponMultiplier(id)).toFixed(1);
-    let wNext = (c.baseAtk * Math.pow(UPGRADE_GROWTH_RATE, wLv + 1)).toFixed(1);
-    let wAfford = gameState.crystal >= wCost;
-    // 防具
-    let aLv = cur.armorLv, aCost = getUpgradeCost(aLv);
-    let aCur = getCharacterMaxHp(id);
-    let aNext = Math.ceil(aCur * UPGRADE_GROWTH_RATE);
-    let aAfford = gameState.crystal >= aCost;
+    // 歷練升級（同時帶動攻擊力與血量）
+    let atkCur = (c.baseAtk * getCharacterWeaponMultiplier(id)).toFixed(1);
+    let atkNext = (c.baseAtk * Math.pow(TRAIN_GROWTH_RATE, tLv)).toFixed(1); // 下一級倍率＝TRAIN_GROWTH_RATE^tLv
+    let hpCur = getCharacterMaxHp(id);
+    let hpNext = Math.ceil(c.baseHp * Math.pow(TRAIN_GROWTH_RATE, tLv));
+    let atCap = tLv >= TRAIN_LEVEL_CAP;
+    let tCost = getTrainUpgradeCost(tLv);
+    let tAfford = gameState.crystal >= tCost;
+    let trainBtn = atCap
+      ? `<div class="dim" style="margin-top:4px;">歷練已達上限。</div>`
+      : `<button class="action-btn" style="margin-top:4px;" title="花費 💎${tCost}，${name} 歷練 ${tLv}→${tLv + 1}：攻擊 ${atkCur}→${atkNext}、血量 ${hpCur}→${hpNext}" ${tAfford ? "" : "disabled"} onclick="upgradeTrainLevel('${id}')">升歷練 💎${tCost}</button>`;
+
+    // 技能解鎖（第 1 招免費送、其餘要買；照技能池順序列出）
+    let skillRows = c.skillIds.map((sid) => {
+      let sk = SKILLS[sid];
+      if (isSkillUnlocked(id, sid)) {
+        return `<div class="dim" style="margin-top:6px;">✅ ${sk.name} <span class="tag">已解鎖</span></div>`;
+      }
+      let cost = getSkillUnlockCost(id, sid);
+      let afford = gameState.crystal >= cost;
+      return `<div style="margin-top:6px;">🔒 ${sk.name}
+        <button class="action-btn" style="margin-top:2px;" title="花費 💎${cost} 解鎖 ${name} 的「${sk.name}」" ${afford ? "" : "disabled"} onclick="unlockSkill('${id}', '${sid}')">解鎖 💎${cost}</button>
+      </div>`;
+    }).join("");
 
     return `<div class="menu-item" style="cursor:default;">
-      <div><strong>${c.icon} ${name}</strong></div>
-      <div class="dim" style="margin-top:4px;">⚔️ 武器 Lv.${wLv}　攻擊力 ${wCur} → ${wNext}</div>
-      <button class="action-btn" style="margin-top:4px;" title="花費 💎${wCost}，將${name}的攻擊力從 ${wCur} 提升到 ${wNext}" ${wAfford ? "" : "disabled"} onclick="confirmUpgrade('weapon', '${id}')">強化武器 💎${wCost}</button>
-      <div class="dim" style="margin-top:8px;">🛡️ 防具 Lv.${aLv}　血量 ${aCur} → ${aNext}</div>
-      <button class="action-btn" style="margin-top:4px;" title="花費 💎${aCost}，將${name}的血量從 ${aCur} 提升到 ${aNext}" ${aAfford ? "" : "disabled"} onclick="confirmUpgrade('armor', '${id}')">強化防具 💎${aCost}</button>
+      <div><strong>${c.icon} ${name}</strong> <span class="dim">歷練 ${tLv}</span></div>
+      <div class="dim" style="margin-top:4px;">✨ 攻擊力 ${atkCur}　血量 ${hpCur}${atCap ? "" : ` → 升級後 ${atkNext} / ${hpNext}`}</div>
+      ${trainBtn}
+      <div class="dim" style="margin-top:10px;">技能：</div>
+      ${skillRows}
     </div>`;
   }).join("");
 
-  // 一鍵升級：只要「當前最低等級的那項」還升得起就顯示可按（成本最低的一定是等級最低那項）
-  let cheapest = collectUpgradeItems().reduce((best, it) => it.lv < best.lv ? it : best);
-  let canOneClick = gameState.crystal >= getUpgradeCost(cheapest.lv);
+  // 一鍵升歷練：只要「歷練最低的人」還升得起就可按（成本最低的一定是歷練最低那個）。
+  let lowest = SHELTER_PARTY_IDS.reduce((a, b) => gameState.characters[a].trainLevel <= gameState.characters[b].trainLevel ? a : b);
+  let canOneClick = gameState.characters[lowest].trainLevel < TRAIN_LEVEL_CAP && gameState.crystal >= getTrainUpgradeCost(gameState.characters[lowest].trainLevel);
 
   showScreen(`
-    <h2 class="screen-title">強化裝備</h2>
+    <h2 class="screen-title">歷練與技能</h2>
     <div class="card">
-      <p class="dim">目前潛晶 💎${gameState.crystal}。武器提升攻擊力、防具提升血量。</p>
-      <button class="action-btn" title="盡可能花光潛晶，優先升等級最低的" ${canOneClick ? "" : "disabled"} onclick="oneClickUpgrade()">⚡ 一鍵升級</button>
+      <p class="dim">目前潛晶 💎${gameState.crystal}。歷練提升攻擊力＋血量＋技能傷害（同一條軸）；技能一次性解鎖。</p>
+      <button class="action-btn" title="盡可能花光潛晶，優先升歷練最低的人" ${canOneClick ? "" : "disabled"} onclick="oneClickTrainUp()">⚡ 一鍵升歷練</button>
     </div>
     <div class="card">${rows}</div>
     <button class="action-btn secondary" onclick="showWorkshopScreen()">返回</button>
   `, { withTopbar: true });
 }
 
-// 一鍵升級用：把全體「武器＋防具」列成可升項目，順序＝優先序（先所有人武器、再所有人防具，人照 SHELTER_PARTY_IDS）。
-function collectUpgradeItems() {
-  let items = [];
-  SHELTER_PARTY_IDS.forEach((id) => items.push({ id, kind: "weapon", lv: gameState.characters[id].weaponLv }));
-  SHELTER_PARTY_IDS.forEach((id) => items.push({ id, kind: "armor", lv: gameState.characters[id].armorLv }));
-  return items;
-}
-
-function confirmUpgrade(kind, charId) {
+function upgradeTrainLevel(charId) {
   let cur = gameState.characters[charId];
-  let curLv = kind === "weapon" ? cur.weaponLv : cur.armorLv;
-  let cost = getUpgradeCost(curLv);
+  if (cur.trainLevel >= TRAIN_LEVEL_CAP) return;
+  let cost = getTrainUpgradeCost(cur.trainLevel);
   if (gameState.crystal < cost) return;
   gameState.crystal -= cost;
-  if (kind === "weapon") cur.weaponLv++;
-  else cur.armorLv++;
-  systemToast(`✅ 強化完成（花費 💎${cost}）`);
+  cur.trainLevel++;
+  systemToast(`✨ ${displayName(charId)} 歷練提升到 ${cur.trainLevel}（花費 💎${cost}）`);
   showWorkshopUpgradeScreen();
 }
 
-// 一鍵升級（納可要求）：先問確認，再盡可能花光潛晶。
-function oneClickUpgrade() {
-  openGenericModal("一鍵升級", `
-    <p>確定要一鍵升級嗎？</p>
-    <p class="dim">會盡可能把潛晶花完：每次都先升「目前等級最低」的那項；同等級時照順序（先所有人的武器，再所有人的防具），直到潛晶不夠為止。</p>
-    <button class="action-btn" onclick="doOneClickUpgrade()">確定，一鍵升級</button>
+function unlockSkill(charId, skillId) {
+  let cur = gameState.characters[charId];
+  if (isSkillUnlocked(charId, skillId)) return;
+  let cost = getSkillUnlockCost(charId, skillId);
+  if (gameState.crystal < cost) return;
+  gameState.crystal -= cost;
+  cur.unlockedSkills.push(skillId);
+  systemToast(`🔓 ${displayName(charId)} 解鎖了「${SKILLS[skillId].name}」（花費 💎${cost}）`);
+  checkAchievements(); // 解鎖技能可能觸發成就
+  showWorkshopUpgradeScreen();
+}
+
+// 一鍵升歷練（保留舊「一鍵升級」的便利）：先確認，再盡量花光潛晶、優先升歷練最低的人。
+function oneClickTrainUp() {
+  openGenericModal("一鍵升歷練", `
+    <p>確定要一鍵升歷練嗎？</p>
+    <p class="dim">會盡可能把潛晶花完：每次都先升「目前歷練最低」的人，直到潛晶不夠為止。（不會自動解鎖技能。）</p>
+    <button class="action-btn" onclick="doOneClickTrainUp()">確定，一鍵升歷練</button>
     <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">取消</button>
   `);
 }
 
-function doOneClickUpgrade() {
+function doOneClickTrainUp() {
   closeGenericModal();
   let spent = 0, count = 0;
-  // 每一步重新盤點：挑等級最低的項目（reduce 用「嚴格小於才替換」→ 同級時保留順序在前的＝武器優先、人照序），升它。
   while (count < 999) {
-    let items = collectUpgradeItems();
-    let target = items.reduce((best, it) => (it.lv < best.lv ? it : best));
-    let cost = getUpgradeCost(target.lv);
-    if (gameState.crystal < cost) break; // 連最低等級（成本最低）那項都升不起 → 停
+    // 每步挑歷練最低、且沒到上限的人（同級時照 SHELTER_PARTY_IDS 順序）。
+    let target = null;
+    SHELTER_PARTY_IDS.forEach((id) => {
+      if (gameState.characters[id].trainLevel >= TRAIN_LEVEL_CAP) return;
+      if (!target || gameState.characters[id].trainLevel < gameState.characters[target].trainLevel) target = id;
+    });
+    if (!target) break;
+    let cost = getTrainUpgradeCost(gameState.characters[target].trainLevel);
+    if (gameState.crystal < cost) break;
     gameState.crystal -= cost;
-    if (target.kind === "weapon") gameState.characters[target.id].weaponLv++;
-    else gameState.characters[target.id].armorLv++;
+    gameState.characters[target].trainLevel++;
     spent += cost; count++;
   }
-  if (count > 0) systemToast(`⚡ 一鍵升級完成：共升 ${count} 級，花費 💎${spent}`);
+  if (count > 0) systemToast(`⚡ 一鍵升歷練完成：共升 ${count} 級，花費 💎${spent}`);
   else systemToast("潛晶不夠，一次都升不了。", true);
   showWorkshopUpgradeScreen();
 }
@@ -390,18 +412,17 @@ function showSkillManagementForChar(charId) {
   relicSearchText = "";
   let c = CHARACTERS[charId];
   let name = charId === "主角" ? (gameState.playerName || "你") : c.name;
-  let lv = getCharacterLevel(charId);
   let equipped = gameState.equippedSkills[charId];
 
   let rows = c.skillIds.map((skillId, idx) => {
     let skill = SKILLS[skillId];
-    let unlockLevel = getSkillUnlockLevel(charId, skillId);
-    let unlocked = lv >= unlockLevel;
+    let unlocked = isSkillUnlocked(charId, skillId);
     let isEquipped = equipped.includes(skillId);
     let desc = skillDescForDisplay(skill, charId);
     if (!unlocked) {
+      let cost = getSkillUnlockCost(charId, skillId);
       return `<div class="menu-item disabled">
-        <strong>${skill.name}</strong> <span class="dim">需求等級 ${unlockLevel}（尚未解鎖）</span>
+        <strong>${skill.name}</strong> <span class="dim">🔒 未解鎖（到工坊「歷練與技能」花 💎${cost} 解鎖）</span>
       </div>`;
     }
     return `<div class="menu-item" style="${isEquipped ? "border-left-color:#4fa8d8;" : ""}" onclick="toggleEquippedSkill('${charId}', '${skillId}')">

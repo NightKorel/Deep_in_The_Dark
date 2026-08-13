@@ -14,34 +14,33 @@ const POTION_HEAL_PERCENT = 0.30; // 補血藥回復比例（藥效強化增益�
 const POTION_HOT_PERCENT = 0.15; // 外敷：每回合回復最大血量比例（藥效強化時 ×1.5）
 const POTION_HOT_DURATION = 3;   // 外敷：持續回合數（15%×3＝總量45%，比直飲30%多、但延遲又怕被打斷，兩種用法各有取捨）
 
-// 強化系統（納可 2026-08-12 拍板：改「很久才升一次，但一次有感」）：
-//   幅度加大（每級 +25%），成本指數上漲（越高級越貴，×2 成長），配合潛晶隨層指數上漲。
-// 升級費用：Lv1=10，之後每級 ×2 無條件進位（10→20→40→80→160…）＝指數成長，後期強化是要存一陣子的大投資。
-const UPGRADE_COST_BY_LEVEL = [0, 10, 15, 23, 35, 53];
-function getUpgradeCost(currentLevel) {
-  // currentLevel 是目前等級，升到 currentLevel+1 要付 UPGRADE_COST_BY_LEVEL[currentLevel+1]
-  let targetLevel = currentLevel + 1;
-  if (targetLevel < UPGRADE_COST_BY_LEVEL.length) return UPGRADE_COST_BY_LEVEL[targetLevel];
-  // 超出表格範圍的話，沿用同樣 ×2 無條件進位的規律往下推算
-  let cost = UPGRADE_COST_BY_LEVEL[UPGRADE_COST_BY_LEVEL.length - 1];
-  for (let lv = UPGRADE_COST_BY_LEVEL.length; lv <= targetLevel; lv++) {
-    cost = Math.ceil(cost * 1.5);
-  }
+// ========================================
+// 成長系統・精簡版（納可 2026-08-13 拍板）：砍掉經驗值/等級/武器防具強化，
+//   潛晶＝唯一成長貨幣，只有兩個用途：
+//     ① 解鎖技能（一次性；每個角色的第 1 招免費、其餘要買）。
+//     ② 升「歷練等級」（一條總軸；一升＝血量＋普攻＋所有技能傷害一起溫和上升，同一個倍率）。
+//   世界觀：潛晶＝潛淵的力量結晶，吸收/煉化潛晶＝把它煉進自己的技藝裡（越投入越純熟＝歷練）。
+// ========================================
+
+// 歷練等級：每級讓「血量／普攻／技能傷害」一起 ×TRAIN_GROWTH_RATE（溫和成長，數值不膨脹）。
+// 歷練 1 級＝基礎值（不加成）；每往上一級 +9%。
+const TRAIN_GROWTH_RATE = 1.09;
+const TRAIN_LEVEL_CAP = 20; // 寬鬆上限，避免無限升
+// 歷練升級成本：Lv1→2 = 15 潛晶，之後每級 ×1.5 無條件進位（15→23→35→53…）＝溫和指數，越高越貴。
+function getTrainUpgradeCost(currentTrainLevel) {
+  let cost = 15;
+  for (let lv = 1; lv < currentTrainLevel; lv++) cost = Math.ceil(cost * 1.5);
   return cost;
 }
-const UPGRADE_GROWTH_RATE = 1.10; // 武器/裝備每級成長倍率（退回原本 +10%）
 
-// 經驗值曲線：index = 目前等級，值 = 從這一級升到下一級所需的經驗
-const EXP_CURVE = [0, 30, 100, 300];
-function getExpNeeded(level) {
-  if (level < EXP_CURVE.length) return EXP_CURVE[level];
-  let last = EXP_CURVE[EXP_CURVE.length - 1];
-  for (let lv = EXP_CURVE.length; lv <= level; lv++) {
-    last = Math.round(last * 2.75); // 5級以後：每級約上一級的2.5~3倍，取中間值2.75
-  }
-  return last;
+// 技能解鎖成本：照該技能在角色技能池裡的位置。第 1 招（idx 0）免費送、其餘要花潛晶解鎖（一次性）。
+// 之後加新角色只要技能照 skillIds 順序排好即可；技能數超過表長就沿用最後一格的價。
+const SKILL_UNLOCK_COSTS = [0, 40, 75, 120];
+function getSkillUnlockCost(charId, skillId) {
+  let idx = CHARACTERS[charId].skillIds.indexOf(skillId);
+  if (idx <= 0) return 0; // 找不到或第 1 招 → 免費
+  return SKILL_UNLOCK_COSTS[idx] != null ? SKILL_UNLOCK_COSTS[idx] : SKILL_UNLOCK_COSTS[SKILL_UNLOCK_COSTS.length - 1];
 }
-const LEVEL_CAP = 20; // 目前內容還沒設計到這麼高，先放一個寬鬆上限避免無限升級
 
 // ---------- 角色 ----------
 
@@ -481,9 +480,7 @@ const MAX_LAYER = 3;
 // （2026-08-12）納可拍板：選深層跳關「不再自動補償任何增益或遺物」，就單純跳關。舊的 SKIP_LAYER_*_COMP 已移除。
 const MIMIC_AMBUSH_CHANCE = 0.05; // 一般小怪戰鬥額外混入寶箱怪的機率（不佔原本2~3隻的名額，是多加的）
 
-// 每隻小怪的經驗值與潛晶掉落（第一圈層小怪戰鬥）
-const EXP_PER_MONSTER_LAYER1 = [3, 5]; // 隨機範圍
-const BOSS_EXP_REWARD = 20; // 文件沒寫Boss經驗值，先抓一個合理數字，之後可調
+// 潛晶掉落（成長系統精簡版後，打怪只給潛晶、不再給經驗；潛晶＝唯一成長貨幣）
 const CRYSTAL_DROP = {
   普通: [3, 6],  // 小幅上調：打怪有風險（掉血/耗技能/可能全滅），潛晶要比被動事件多一點才值得
   菁英: [7, 11],

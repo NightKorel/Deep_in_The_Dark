@@ -36,12 +36,14 @@ let gameState = {
   discoveredDishes: {}, // { 彈牙凍飲: true, ... } 曾經做過/取得過的料理（圖鑑用，做過就永久記錄）
   discoveredPotions: {}, // { 腐蝕彈: true, ... } 曾經製作過的魔藥（圖鑑用）
   characters: {
-    // relics：這個角色永久裝著的遺物 id 陣列（最多 RELIC_MAX_PER_CHARACTER 個）。
-    // 遺物是永久的，裝上去就一直在、除非在「技能遺物」頁面拆下來（不像舊版單趟深潛就重置）。
-    主角: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
-    K: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
-    V: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
-    L: { level: 1, exp: 0, weaponLv: 0, armorLv: 0, relics: [] },
+    // 成長系統精簡版（2026-08-13）：
+    //   trainLevel＝歷練等級（1 起跳，靠潛晶升；帶動血量/普攻/技能傷害）。
+    //   unlockedSkills＝已解鎖的技能 id 陣列（起始只有各角色的第 1 招，其餘花潛晶解鎖）。
+    //   relics＝這個角色永久裝著的遺物 id 陣列（最多 RELIC_MAX_PER_CHARACTER 個；裝上去就一直在，除非在「技能遺物」頁拆下）。
+    主角: { trainLevel: 1, unlockedSkills: [CHARACTERS.主角.skillIds[0]], relics: [] },
+    K: { trainLevel: 1, unlockedSkills: [CHARACTERS.K.skillIds[0]], relics: [] },
+    V: { trainLevel: 1, unlockedSkills: [CHARACTERS.V.skillIds[0]], relics: [] },
+    L: { trainLevel: 1, unlockedSkills: [CHARACTERS.L.skillIds[0]], relics: [] },
   },
   rawFoodInventory: {}, // { 凝膠凍: {normal: 0, rare: 0}, ... }
   cookedInventory: {}, // { 彈牙凍飲: {normal: 0, rare: 0}, ... }
@@ -88,44 +90,35 @@ function pickRandom(arr) {
   return arr[randInt(0, arr.length - 1)];
 }
 
-// ---------- 角色數值計算（依賴 gameState.characters 的等級/強化） ----------
+// ---------- 角色數值計算（依賴 gameState.characters 的歷練等級 trainLevel／已解鎖技能 unlockedSkills） ----------
 
+// 成長系統精簡版：血量／普攻／技能傷害／治療都吃「同一條歷練軸」——歷練每級 ×TRAIN_GROWTH_RATE。
+// 歷練 1 級＝基礎值（倍率 1.0）；每往上一級 +9%。所以下面三個倍率共用同一個 trainLevel 來源。
+function getTrainLevel(charId) {
+  return gameState.characters[charId].trainLevel || 1;
+}
+function getTrainMultiplier(charId) {
+  return Math.pow(TRAIN_GROWTH_RATE, getTrainLevel(charId) - 1);
+}
 function getCharacterMaxHp(charId) {
-  let base = CHARACTERS[charId].baseHp;
-  let armorLv = gameState.characters[charId].armorLv;
-  let hp = base;
-  for (let i = 0; i < armorLv; i++) hp = Math.ceil(hp * UPGRADE_GROWTH_RATE);
-  return hp;
+  return Math.ceil(CHARACTERS[charId].baseHp * getTrainMultiplier(charId));
 }
 function getCharacterWeaponMultiplier(charId) {
-  let weaponLv = gameState.characters[charId].weaponLv;
-  return Math.pow(UPGRADE_GROWTH_RATE, weaponLv); // 內部存小數，傷害計算時才進位
+  return getTrainMultiplier(charId); // 普攻與技能傷害共用；內部存小數，傷害計算時才進位
 }
-// 治療類技能(heal/hot)的成長依據：武器與裝備等級取平均、四捨五入，兩邊都有投資才會加快治療成長
 function getCharacterHealMultiplier(charId) {
-  let c = gameState.characters[charId];
-  let avgLv = Math.round((c.weaponLv + c.armorLv) / 2);
-  return Math.pow(UPGRADE_GROWTH_RATE, avgLv);
+  return getTrainMultiplier(charId); // 治療也跟著歷練一起長（同一條軸）
 }
+// 相容舊呼叫點：有些畫面/成就還叫 getCharacterLevel，現在一律回傳歷練等級。
 function getCharacterLevel(charId) {
-  return gameState.characters[charId].level;
-}
-function getCharacterExpNeeded(charId) {
-  return getExpNeeded(gameState.characters[charId].level);
+  return getTrainLevel(charId);
 }
 
-// 技能池裡第N個技能(idx從0起)要求Lv(N+1)才解鎖：第1個Lv1就有，第2個Lv2，第3個Lv3，第4個Lv4。
-// 04_避難所.js的技能管理畫面也要顯示同樣的需求等級，所以共用這個函式，不要各自寫一份公式。
-function getSkillUnlockLevel(charId, skillId) {
-  let idx = CHARACTERS[charId].skillIds.indexOf(skillId);
-  return idx === -1 ? null : idx + 1;
-}
-
-// 「裝備」跟「解鎖」是兩回事：預設全部技能都在equippedSkills裡，但沒到等級的話即使掛在裝備清單也不能用。
+// 「解鎖」＝這個技能的 id 有沒有在該角色的 unlockedSkills 裡（花潛晶在工坊解鎖）。
+// 「裝備」是另一回事：equippedSkills 決定出戰帶哪幾個，但沒解鎖的即使掛在裝備清單也不能用。
 function isSkillUnlocked(charId, skillId) {
-  let requiredLevel = getSkillUnlockLevel(charId, skillId);
-  if (requiredLevel === null) return false;
-  return getCharacterLevel(charId) >= requiredLevel;
+  let c = gameState.characters[charId];
+  return !!(c && Array.isArray(c.unlockedSkills) && c.unlockedSkills.includes(skillId));
 }
 
 // ---------- 畫面切換 ----------
@@ -275,10 +268,11 @@ function openCheatModal() {
     : `<button class="cheat-chip" onclick="${s.fn}">${s.label}</button>`
   ).join("");
 
-  let allMaxed = Object.keys(gameState.characters).every((id) => gameState.characters[id].level >= CHARACTERS[id].skillIds.length);
+  let allMaxed = Object.keys(gameState.characters).every((id) =>
+    CHARACTERS[id].skillIds.every((sid) => isSkillUnlocked(id, sid)) && gameState.characters[id].trainLevel >= CHEAT_TRAIN_LEVEL);
   let maxLevelRow = allMaxed
-    ? `<p class="dim">全體角色已經是目前最高等級了。</p>`
-    : `<button class="action-btn" onclick="cheatMaxLevelAll()">全體角色升到目前最高等級</button>`;
+    ? `<p class="dim">全體角色已解鎖全技能、歷練也拉滿了。</p>`
+    : `<button class="action-btn" onclick="cheatMaxLevelAll()">全體角色：解鎖全技能＋歷練拉高</button>`;
   let unlockCasinoRow = isShelterCasinoUnlocked()
     ? `<p class="dim">避難所賭場已經解鎖了。</p>`
     : `<button class="action-btn" style="margin-top:8px;" onclick="cheatUnlockCasino()">解鎖避難所賭場（H）</button>`;
@@ -310,13 +304,15 @@ function cheatUnlockCasino() {
   systemToast("🃏 避難所賭場已解鎖，H 在等你了。");
 }
 
-// 每個角色各自升到「自己技能池的最高等級」(目前四人都是4級，但用skillIds.length算，以後技能數不一致也不用改這裡)
+// 測試用：全體角色解鎖所有技能、歷練拉到 CHEAT_TRAIN_LEVEL（方便測試員直接玩到完整戰力）。
+const CHEAT_TRAIN_LEVEL = 8;
 function cheatMaxLevelAll() {
   Object.keys(gameState.characters).forEach((id) => {
-    let maxLv = CHARACTERS[id].skillIds.length;
-    if (gameState.characters[id].level < maxLv) gameState.characters[id].level = maxLv;
+    let c = gameState.characters[id];
+    c.unlockedSkills = CHARACTERS[id].skillIds.slice(); // 全解鎖
+    if (c.trainLevel < CHEAT_TRAIN_LEVEL) c.trainLevel = CHEAT_TRAIN_LEVEL;
   });
-  systemToast("🔧 全體角色已升到目前最高等級。");
+  systemToast("🔧 全體角色已解鎖全技能、歷練拉高。");
   closeGenericModal();
 }
 
@@ -716,11 +712,20 @@ function applySaveData(data) {
       Object.keys(gameState.characters).forEach((id) => {
         let c = data.characters[id];
         if (!c || typeof c !== "object") return;
-        if (typeof c.level === "number") gameState.characters[id].level = clamp(Math.round(c.level), 1, LEVEL_CAP);
-        if (typeof c.exp === "number") gameState.characters[id].exp = Math.max(0, c.exp);
-        if (typeof c.weaponLv === "number") gameState.characters[id].weaponLv = Math.max(0, Math.round(c.weaponLv));
-        if (typeof c.armorLv === "number") gameState.characters[id].armorLv = Math.max(0, Math.round(c.armorLv));
-        gameState.characters[id].relics = []; // 先清空，下面統一重建（同一件遺物不會同時裝在兩個角色身上）
+        let dst = gameState.characters[id];
+        // 歷練等級：新存檔直接讀 trainLevel；沒有 trainLevel 的舊存檔 → 用舊 weaponLv 粗略換算成歷練（保留一點投入感）。
+        if (typeof c.trainLevel === "number") dst.trainLevel = clamp(Math.round(c.trainLevel), 1, TRAIN_LEVEL_CAP);
+        else if (typeof c.weaponLv === "number") dst.trainLevel = clamp(1 + Math.round(c.weaponLv), 1, TRAIN_LEVEL_CAP);
+        // 已解鎖技能：新存檔讀 unlockedSkills（只留這角色技能池裡的合法 id）；舊存檔用舊 level 換算（前 level 個技能）。
+        if (Array.isArray(c.unlockedSkills)) {
+          let valid = c.unlockedSkills.filter((sid) => CHARACTERS[id].skillIds.includes(sid));
+          dst.unlockedSkills = valid.length ? valid : [CHARACTERS[id].skillIds[0]];
+        } else if (typeof c.level === "number") {
+          let n = clamp(Math.round(c.level), 1, CHARACTERS[id].skillIds.length);
+          dst.unlockedSkills = CHARACTERS[id].skillIds.slice(0, n);
+        }
+        if (!dst.unlockedSkills || !dst.unlockedSkills.length) dst.unlockedSkills = [CHARACTERS[id].skillIds[0]]; // 保底：至少第 1 招
+        dst.relics = []; // 先清空，下面統一重建（同一件遺物不會同時裝在兩個角色身上）
       });
       // 遺物讀檔：只保留合法 id、去重（跨角色也不重複）、每人上限 RELIC_MAX_PER_CHARACTER。舊存檔沒有 relics 就都空著。
       let usedRelicIds = {};

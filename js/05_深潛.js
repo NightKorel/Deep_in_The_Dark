@@ -171,16 +171,6 @@ function addRunCrystal(amount) {
   gameState.stats.maxCrystalSeen = Math.max(gameState.stats.maxCrystalSeen, gameState.crystal); // 成就用：記錄潛晶峰值
 }
 
-function addExp(charId, amount) {
-  let c = gameState.characters[charId];
-  c.exp += amount;
-  while (c.level < LEVEL_CAP && c.exp >= getExpNeeded(c.level)) {
-    c.exp -= getExpNeeded(c.level);
-    c.level++;
-    systemToast(`🎉 ${displayName(charId)} 升到 ${c.level} 級！`);
-  }
-}
-
 function addRawFood(foodId, rare) {
   if (!gameState.rawFoodInventory[foodId]) gameState.rawFoodInventory[foodId] = { normal: 0, rare: 0 };
   if (rare) gameState.rawFoodInventory[foodId].rare++;
@@ -599,17 +589,12 @@ function cheatCompleteLayer3() {
 
 function applyBattleRewards(result) {
   addRunCrystal(result.crystalEarned);
-  let fallenIds = result.fallenIds || [];
-  SHELTER_PARTY_IDS.forEach((id) => {
-    let exp = fallenIds.includes(id) ? Math.round(result.expEarned * 0.5) : result.expEarned;
-    addExp(id, exp);
-  });
+  // 成長系統精簡版：打怪只給潛晶（不再有經驗值），升級改在避難所工坊花潛晶升歷練/解鎖技能。
   (result.foodDrops || []).forEach((drop) => addRawFood(drop.foodId, drop.rare));
   (result.herbDrops || []).forEach((drop) => addRawHerb(drop.herbId, drop.rare));
   let foodMsg = result.foodDropsText ? `、${result.foodDropsText}` : "";
   let herbMsg = result.herbDropsText ? `、${result.herbDropsText}` : "";
-  let fallenMsg = fallenIds.length > 0 ? `（${fallenIds.map(displayName).join("、")}這場中途倒地過，經驗只拿一半）` : "";
-  systemToast(`⚔️ 戰鬥勝利！獲得 💎${result.crystalEarned}、經驗 ${result.expEarned}${foodMsg}${herbMsg}${fallenMsg}`);
+  systemToast(`⚔️ 戰鬥勝利！獲得 💎${result.crystalEarned}${foodMsg}${herbMsg}`);
 }
 
 // ---------- 休息點 ⛺ ----------

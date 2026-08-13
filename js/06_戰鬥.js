@@ -1143,7 +1143,7 @@ function handleBattleWin() {
   let defeatedMonsterIds = activeBattle.enemies.filter((e) => !e.escaped).map((e) => e.monsterId);
   let mimicDefeated = !activeBattle.suppressRewards && defeatedMonsterIds.includes("寶箱怪");
 
-  let crystalEarned = 0, expEarned = 0, foodDrops = [], foodDropsText = "", herbDrops = [], herbDropsText = "";
+  let crystalEarned = 0, foodDrops = [], foodDropsText = "", herbDrops = [], herbDropsText = "";
   if (!activeBattle.suppressRewards) {
     let layerMult = (activeDive && LAYER_REWARD_MULT[activeDive.layer]) || 1; // 越深的圈層獎勵小幅上調
     let category = activeBattle.isBoss ? "Boss" : activeBattle.isElite ? "菁英" : "普通";
@@ -1154,11 +1154,6 @@ function handleBattleWin() {
     if (activeDive.globalBuffs.includes("潛晶磁感")) crystalMult += 0.25;
     if (activeDive.globalBuffs.includes("採集本能")) crystalMult += 0.50;
     crystalEarned = Math.round(baseCrystal * crystalMult * activeBattle.rewardMult * layerMult);
-
-    let eliteExpMult = activeBattle.isElite ? 2 : 1; // 菁英怪獎勵兩倍：潛晶已經有自己的更高掉落區間，經驗值原本沒跟著翻倍，這裡補上
-    expEarned = activeBattle.isBoss
-      ? Math.round(BOSS_EXP_REWARD * layerMult)
-      : Math.round(defeatedMonsterIds.reduce((sum) => sum + randInt(EXP_PER_MONSTER_LAYER1[0], EXP_PER_MONSTER_LAYER1[1]), 0) * eliteExpMult * activeBattle.rewardMult * layerMult);
 
     defeatedMonsterIds.forEach((mid) => {
       let foodId = MONSTERS[mid].foodId;
@@ -1193,7 +1188,7 @@ function handleBattleWin() {
     herbDropsText = herbOrder.map((label) => `${label} x${herbCounts[label]}`).join("、");
   }
 
-  // 這場戰鬥中途倒地過的人，經驗值只拿一半——要在reviveFallenAllies()清掉fallen狀態之前先記下來
+  // 這場戰鬥中途倒地過的人——要在reviveFallenAllies()清掉fallen狀態之前先記下來（給無傷通關成就等判定用）
   let fallenIds = SHELTER_PARTY_IDS.filter((id) => activeDive.party[id].fallen);
   if (fallenIds.length === 0) gameState.stats.flawlessWins++;
   if (defeatedMonsterIds.includes("寶箱怪")) gameState.stats.mimicKills++;
@@ -1209,15 +1204,15 @@ function handleBattleWin() {
   clearBattleTransientBuffs();
   renderBattleScreen();
   if (mimicDefeated) {
-    setTimeout(() => resolveMimicBonus(crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds), 900);
+    setTimeout(() => resolveMimicBonus(crystalEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds), 900);
     return;
   }
-  setTimeout(() => endBattle("win", { crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds }), 900);
+  setTimeout(() => endBattle("win", { crystalEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds }), 900);
 }
 
 // 混戰中打死寶箱怪的額外獎勵，疊加在原本的戰鬥獎勵之上：
 // 50% 噴一大筆潛晶；50% 噴小筆潛晶 + 一個隨機增益（遺物改成成就獎勵後，這裡不再噴遺物）。
-function resolveMimicBonus(crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds) {
+function resolveMimicBonus(crystalEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds) {
   if (chance(0.5)) {
     let bonus = randInt(MIMIC_BONUS_CRYSTAL_BIG[0], MIMIC_BONUS_CRYSTAL_BIG[1]);
     crystalEarned += bonus;
@@ -1229,7 +1224,7 @@ function resolveMimicBonus(crystalEarned, expEarned, foodDrops, foodDropsText, h
     let available = GLOBAL_BUFFS.filter((b) => !activeDive.globalBuffs.includes(b.id));
     if (available.length > 0) grantGlobalBuff(pickRandom(available));
   }
-  endBattle("win", { crystalEarned, expEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds });
+  endBattle("win", { crystalEarned, foodDrops, foodDropsText, herbDrops, herbDropsText, fallenIds });
 }
 
 function handleAllEscaped() {

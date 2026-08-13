@@ -26,15 +26,14 @@ const N = 16;                    // 每組跑幾場（16：目標落在 10% 邊�
 const LAYERS = [1, 2, 3];        // 要測哪些層
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
-// 成長階段（納可校準）：角色等級（技能）升級很容易、很快就滿 4 級，所以【固定 level 4、技能全解鎖】，
-// 真正代表「刷了幾趟／投入多少資源」的變數是【武器／防具強化等級】。所以這裡固定四級、只變裝備等級。
+// 成長階段（成長系統精簡版）：技能全解鎖，變動的是【歷練等級 trainLevel】＝「刷了幾趟／投入多少潛晶」的代表變數。
 // relicCount 先設 0（最保守的裸遺物模型）：真實玩家還有遺物／食物／魔藥會更強，所以怪要調到「連這個裸模型都偏難」。
 const TEAM_STAGES = [
-  { name: '四級·裝備0', level: 4, weaponLv: 0, armorLv: 0, relicCount: 0 },
-  { name: '四級·裝備1', level: 4, weaponLv: 1, armorLv: 1, relicCount: 0 },
-  { name: '四級·裝備2', level: 4, weaponLv: 2, armorLv: 2, relicCount: 0 },
-  { name: '四級·裝備3', level: 4, weaponLv: 3, armorLv: 3, relicCount: 0 },
-  { name: '四級·裝備4', level: 4, weaponLv: 4, armorLv: 4, relicCount: 0 },
+  { name: '歷練1', trainLevel: 1, relicCount: 0 },
+  { name: '歷練2', trainLevel: 2, relicCount: 0 },
+  { name: '歷練3', trainLevel: 3, relicCount: 0 },
+  { name: '歷練4', trainLevel: 4, relicCount: 0 },
+  { name: '歷練5', trainLevel: 5, relicCount: 0 },
 ];
 
 (async () => {
@@ -59,9 +58,8 @@ const TEAM_STAGES = [
     function applyStage(stage) {
       let ids = SHELTER_PARTY_IDS.slice();
       ids.forEach(id => {
-        gameState.characters[id].level = stage.level;
-        gameState.characters[id].weaponLv = stage.weaponLv;
-        gameState.characters[id].armorLv = stage.armorLv;
+        gameState.characters[id].trainLevel = stage.trainLevel;
+        gameState.characters[id].unlockedSkills = CHARACTERS[id].skillIds.slice(); // 技能全解鎖
         gameState.characters[id].relics = [];
       });
       // 依 relicCount 從 RELICS 前面取幾個，輪流分給四人（每人最多 RELIC_MAX_PER_CHARACTER）

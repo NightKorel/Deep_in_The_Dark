@@ -69,7 +69,11 @@ async function launch() {
     // 3) 各層各打一場小怪戰＋Boss戰（滿血滿級，重點是流程不崩、零錯誤）
     gameState.storyFlags.firstLayerCleared = true; gameState.storyFlags.lRescued = true; gameState.storyFlags.layer2Cleared = true;
     syncLRoster();
-    Object.keys(gameState.characters).forEach(id => gameState.characters[id].level = 4);
+    // 成長系統精簡版：解鎖全技能＋拉高歷練（取代舊的「升到 4 級」）
+    Object.keys(gameState.characters).forEach(id => {
+      gameState.characters[id].unlockedSkills = CHARACTERS[id].skillIds.slice();
+      gameState.characters[id].trainLevel = 8;
+    });
 
     async function playBattle(group, opts) {
       Object.keys(activeDive.party).forEach(id => { let m = activeDive.party[id]; m.maxHp = 9999; m.hp = 9999; m.fallen = false; Object.keys(m.skillUses).forEach(s => m.skillUses[s] = 99); });
