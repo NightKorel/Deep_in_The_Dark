@@ -392,15 +392,13 @@ function chooseNode(nodeType) {
 
 // 隨機決定2或3隻，從四種小怪(凝膠/藍顎獸/翅鱗/眼藻)中不重複抽選
 // 從當前圈層的怪物池隨機抽 2~3 隻不重複的小怪。allowMimic=true 時另有機率額外混入寶箱怪（不佔名額）。
-function drawRandomMonsters(allowMimic, forcedCount) {
-  // forcedCount：難度檢查工具用來「固定 3 隻」量難度（2/3 隻難度差很多，統一用最硬的 3 隻算才有意義）。
-  // 遊戲正常玩不傳，維持隨機 2~3 隻。
-  let count = forcedCount || randInt(2, 3);
-  let pool = getLayerMonsterPool(activeDive.layer).slice();
-  let group = [];
-  for (let i = 0; i < count && pool.length > 0; i++) {
-    group.push(pool.splice(randInt(0, pool.length - 1), 1)[0]);
-  }
+// 納可 2026-08-13 拍板：小怪改「固定組合」。從當前圈層的固定組合清單(LAYER_MOB_ENCOUNTERS)挑一組出，
+// 只隨機「挑哪一組」，組合內容固定 → 每場總戰力已知、勝率好算、難度好調。
+// comboIndex（選填）：難度檢查工具用來「逐一指定第幾組」量難度；遊戲正常玩不傳＝隨機挑一組。
+function drawRandomMonsters(allowMimic, comboIndex) {
+  let combos = LAYER_MOB_ENCOUNTERS[activeDive.layer] || LAYER_MOB_ENCOUNTERS[1];
+  let combo = (comboIndex != null && combos[comboIndex]) ? combos[comboIndex] : pickRandom(combos);
+  let group = combo.slice(); // 複製，別動到原始清單
   if (allowMimic && chance(MIMIC_AMBUSH_CHANCE)) group.push("寶箱怪");
   return group;
 }
