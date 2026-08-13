@@ -79,7 +79,8 @@ const TEAM_STAGES = [
         .sort((a, b) => ((SKILLS[b].dmgRange ? SKILLS[b].dmgRange[1] : 0) - (SKILLS[a].dmgRange ? SKILLS[a].dmgRange[1] : 0)))[0];
     }
 
-    async function runOne(group, opts) {
+    // model：'bare'＝納可拍板的「只普攻裸模型」（難度下限）；'smart'＝共用的聰明戰鬥 AI（真人上限，見 js/10_戰鬥AI.js）。
+    async function runOne(group, opts, model) {
       Object.keys(activeDive.party).forEach(id => {
         let m = activeDive.party[id];
         m.hp = m.maxHp; m.fallen = false;
@@ -94,13 +95,18 @@ const TEAM_STAGES = [
         if (activeBattle && activeBattle.phase === 'ally' && !activeBattle.pendingAction) {
           let id = activeBattle.allyTurnQueue[activeBattle.allyTurnPointer];
           if (id && isCurrentActorsTurn(id)) {
-            let m = activeDive.party[id];
-            let tgt = activeBattle.enemies.find(e => e.hp > 0 && !e.escaped && !e.burrowed);
-            if (m.hp / m.maxHp < 0.4 && gameState.potions > 0) battleDrinkPotion(id);
-            else if (tgt) {
-              // 納可拍板：裸模型只用普攻、完全不用技能
-              battleNormalAttack(id);
-              if (activeBattle && activeBattle.pendingAction) battleSelectTarget(tgt.uid, true);
+            if (model === 'smart') {
+              // 聰明 AI：一份決策共用給全角色（救人>集火收頭>期望傷害>普攻）。這正是遊戲要用的那份。
+              aiTakeAllyTurn(id);
+            } else {
+              // 裸模型（納可拍板）：只普攻、血低喝藥，完全不用技能。
+              let m = activeDive.party[id];
+              let tgt = activeBattle.enemies.find(e => e.hp > 0 && !e.escaped && !e.burrowed);
+              if (m.hp / m.maxHp < 0.4 && gameState.potions > 0) battleDrinkPotion(id);
+              else if (tgt) {
+                battleNormalAttack(id);
+                if (activeBattle && activeBattle.pendingAction) battleSelectTarget(tgt.uid, true);
+              }
             }
           }
         }
@@ -111,14 +117,14 @@ const TEAM_STAGES = [
       return { win: outcome === 'win', hpLeft: hpPct / cnt };
     }
 
-    async function measure(layer, kind) {
+    async function measure(layer, kind, model) {
       startNewDive(null, null, layer);
       let wins = 0, hpSum = 0;
       for (let i = 0; i < N; i++) {
         let group, opts;
         if (kind === 'boss') { group = [getLayerBoss(layer)]; opts = { isBoss: true }; }
         else { group = drawRandomMonsters(false); opts = { isElite: kind === 'elite' }; } // 小怪＝從該層固定組合隨機挑一組（組合內容固定）
-        let r = await runOne(group, opts);
+        let r = await runOne(group, opts, model);
         if (r.win) wins++;
         hpSum += r.hpLeft;
       }
@@ -126,29 +132,40 @@ const TEAM_STAGES = [
     }
 
     let out = {};
-    for (let stage of TEAM_STAGES) {
-      applyStage(stage);
-      out[stage.name] = {};
-      for (let layer of LAYERS) {
-        out[stage.name]['第' + layer + '層'] = {
-          小怪: await measure(layer, 'normal'),
-          菁英: await measure(layer, 'elite'),
-          Boss: await measure(layer, 'boss'),
-        };
+    for (let model of ['bare', 'smart']) {
+      out[model] = {};
+      for (let stage of TEAM_STAGES) {
+        applyStage(stage);
+        out[model][stage.name] = {};
+        for (let layer of LAYERS) {
+          out[model][stage.name]['第' + layer + '層'] = {
+            小怪: await measure(layer, 'normal', model),
+            菁英: await measure(layer, 'elite', model),
+            Boss: await measure(layer, 'boss', model),
+          };
+        }
       }
     }
     return out;
   }, { N, LAYERS, TEAM_STAGES });
 
+  const MODEL_LABEL = {
+    bare: '裸模型（只普攻＋血低喝藥，不用技能）＝難度下限',
+    smart: '聰明 AI（會用技能：救人>集火收頭>最痛的攻擊技，全角色共用一份）＝真人上限',
+  };
   console.log('=== 潛淵 難度檢查（每組 ' + N + ' 場；勝率%／打完剩血%）===');
-  console.log('（自動玩家＝只普攻+血低喝藥的「最裸模型」，不用任何技能；真實玩家有技能/食物/魔藥/遺物會強很多→怪要調到這裡都偏難）');
-  console.log('（難度目標：裝備等級＝層數 時，該層「小怪」勝率壓在 10% 以下、但不為 0）\n');
-  for (let stage of Object.keys(result)) {
-    console.log('【' + stage + '】');
-    for (let layer of Object.keys(result[stage])) {
-      let row = result[stage][layer];
-      console.log(`  ${layer}： 小怪 ${row.小怪.winRate}%/${row.小怪.avgHpLeft}%　菁英 ${row.菁英.winRate}%/${row.菁英.avgHpLeft}%　Boss ${row.Boss.winRate}%/${row.Boss.avgHpLeft}%`);
+  console.log('（兩條一起看：裸模型偏難、真實玩家會落在「聰明 AI」附近或更強，因為真人還有食物/魔藥/遺物/成就）');
+  console.log('（難度目標：裝備等級＝層數 時，該層「小怪」對裸模型勝率壓在 10% 以下、但不為 0）\n');
+  for (let model of Object.keys(result)) {
+    console.log('════════ ' + MODEL_LABEL[model] + ' ════════');
+    for (let stage of Object.keys(result[model])) {
+      console.log('【' + stage + '】');
+      for (let layer of Object.keys(result[model][stage])) {
+        let row = result[model][stage][layer];
+        console.log(`  ${layer}： 小怪 ${row.小怪.winRate}%/${row.小怪.avgHpLeft}%　菁英 ${row.菁英.winRate}%/${row.菁英.avgHpLeft}%　Boss ${row.Boss.winRate}%/${row.Boss.avgHpLeft}%`);
+      }
     }
+    console.log('');
   }
   console.log('\n錯誤:', errs.length ? errs.join(' | ') : '（無）');
   await b.close();
