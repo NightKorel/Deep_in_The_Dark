@@ -8,6 +8,118 @@ function displayName(charId) {
   return charId === "主角" ? (gameState.playerName || "你") : CHARACTERS[charId].name;
 }
 
+// ========== 主線劇情段落（抽成「回傳 lines 的函式」）==========
+// 為什麼要這樣：作弊「打完第X層」會跳過中間段落、根本沒播＝沒進「劇情回顧」（納可回報的 bug）。
+// 把台詞抽成函式後：① 正常播放照用（單一來源，改台詞不會兩邊不同步）；
+// ② 作弊時用 recordStoryLog 直接「補記」被跳過的段落（不用真的播），劇情回顧就不再缺一大片。
+// 含 displayName 動態玩家名，所以必須是函式、不能是靜態陣列。
+const STORY_SEG = {
+  第一層Boss門前: { id: "第一層Boss門前", title: "第一圈層・Boss 門前", order: 10 },
+  救出L:          { id: "救出L", title: "第一圈層・救出 L", order: 20 },
+  第二層Boss門前: { id: "第二層Boss門前", title: "第二圈層・Boss 門前", order: 30 },
+  第二層結局:     { id: "第二層結局", title: "第二圈層・巨岩蚺之後", order: 40 },
+  第三層Boss門前: { id: "第三層Boss門前", title: "第三圈層・Boss 門前", order: 45 },
+};
+function storyLinesLayer1BossDoor() {
+  return [
+    { speaker: "K", text: "等一下。" },
+    { speaker: "", text: "K 的表情嚴肅起來。" },
+    { speaker: "K", text: "……感覺不對。" },
+    { speaker: "", text: "V 點了一下頭，握緊刀柄。" },
+    { speaker: "K", text: "有東西在前面。我不確定那是什麼……但 L 失蹤的地方，就在這附近。" },
+    { speaker: "K", text: "如果 L 還被困在裡面，我們必須過去。" },
+    { speaker: "K", text: `${displayName("主角")}，走吧。` },
+  ];
+}
+function storyLinesRescueL() {
+  return [
+    { speaker: "", text: "島鯨龐大的身軀漸漸沉入水底，不再動彈。" },
+    { speaker: "", text: "水面下傳出微弱的動靜，然後是氣泡——一個人浮了上來，銀白色的長髮在水中漂浮。" },
+    { speaker: "K", text: "——L！！" },
+    { speaker: "", text: "K、V 和你一起把人拉上岸邊。那人咳了些水，癱坐在地喘著氣，綠眼睛半閉著。" },
+    { speaker: "", text: "K 一把抱住了他。" },
+    { speaker: "K", text: "……找到了，終於找到了……" },
+    { speaker: "", text: "V 蹲下來輕拍著 K 的肩膀，深藍的眸子卻看向你。他眨了眨眼。" },
+    { speaker: "", text: "你從那個眼神讀出了一絲感謝。" },
+    { speaker: "", text: "……" },
+    { speaker: "", text: "回到避難所。L 靠著棚子的牆坐了很久，K 替他重新包紮了傷，又硬塞了半壺水過去。" },
+    { speaker: "", text: "過了好一會，L 的臉色終於有了點血色。" },
+    { speaker: "K", text: "……感覺怎麼樣？還撐得住嗎？" },
+    { speaker: "L", text: "死不了。" },
+    { speaker: "L", text: "……我沒事了。別這樣盯著我，怪滲人的。" },
+    { speaker: "K", text: "哈，還有力氣嫌我，那就真的沒事了。" },
+    { speaker: "", text: "L 轉向你，沉默了一下。" },
+    { speaker: "L", text: "你……我們素昧平生。" },
+    { speaker: "L", text: "謝謝你。為不認識的人冒險，這種傻事一般人是不會做的。" },
+    { speaker: "V", text: "他是在道謝。" },
+    { speaker: "", text: "V 小聲地說，L 瞥了他一眼。" },
+    { speaker: "L", text: "我知道我在說什麼。" },
+    { speaker: "", text: "L 站起身，環顧避難所，目光在幾個空掉的架子上停了停。" },
+    { speaker: "L", text: "魔藥的庫存……全空了，補血藥也剩得不多。這段日子，你們過得很省吧。" },
+    { speaker: "L", text: "補血藥很簡單，我來做。以後每次出發前，我都會幫你把補血藥補滿，不用再花潛晶買了。" },
+    { speaker: "L", text: "魔藥就不行了，需要特定的藥材。我之前看到過幾種還算合適的素材，既然要往下走，順路去找找看吧。" },
+    { speaker: "", text: "K 張了張嘴，似乎想說什麼，最後又把話嚥了回去。" },
+    { speaker: "L", text: "……我去把製藥的工具整理一下。" },
+    { speaker: "", text: "L 撐著牆站起來，慢慢走向工坊。" },
+    { speaker: "", text: "等 L 走遠，K 才壓低了聲音。" },
+    { speaker: "K", text: "他嘴上不饒人。其實我們三個裡面，最想帶著大家離開潛淵的，就是他。" },
+    { speaker: "K", text: "V 的腳有舊傷，在這種地方根本沒法好好養；我喜歡嘗試各種市井小菜，但在這什麼都缺的鬼地方，連這點念想都算奢侈。" },
+    { speaker: "V", text: "……嗯。" },
+    { speaker: "K", text: "L 一直說，一定有辦法出去的。回到潛淵之上，去過我們該有的、平凡但珍貴的日子。我、V，我們都想相信他。" },
+    { speaker: "K", text: `能重新聚在一起……真的太好了。謝謝你，${displayName("主角")}。` },
+  ];
+}
+function storyLinesLayer2BossDoor() {
+  return [
+    { speaker: "", text: "前方的通道被一堆巨大的石頭堵住了大半。" },
+    { speaker: "K", text: "咦，這……" },
+    { speaker: "L", text: "那不全是石頭。" },
+    { speaker: "", text: "L 的聲音壓得很低。" },
+    { speaker: "V", text: "……在呼吸。別靠太近。" },
+    { speaker: "K", text: "藥材就在牠守著的地方？" },
+    { speaker: "L", text: "依我的記憶，多半是。" },
+    { speaker: "K", text: `${displayName("主角")}，小心點。這傢伙……不好惹。` },
+  ];
+}
+function storyLinesLayer2Ending() {
+  return [
+    { speaker: "", text: "巨岩蚺龐大的身軀癱軟下來，石堆轟然崩落，揚起漫天塵灰。" },
+    { speaker: "L", text: "……成了。" },
+    { speaker: "", text: "L 蹲下身，在崩塌的碎石與那東西守著的角落裡翻找，採集了些什麼，仔細收好。" },
+    { speaker: "L", text: "夠了。這些拿回去，應該能做出像樣的藥。有一些想法可以嘗試。" },
+    { speaker: "L", text: "比如說補血藥……不一定要一口喝下去。如果敷在傷口上，或許能讓效果更好，只是生效比較慢。" },
+    { speaker: "L", text: "回去我試著做一批新的。" },
+    { speaker: "K", text: "……又一個區域。" },
+    { speaker: "L", text: "嗯，往下只會更難走。" },
+  ];
+}
+function storyLinesLayer3BossDoor() {
+  return [
+    { speaker: "", text: "前方的風忽然停了。整片風谷安靜得不自然。" },
+    { speaker: "V", text: "……前面有東西。" },
+    { speaker: "L", text: "小心牠的尾羽。我在遠處瞥過一眼……那紋路會讓人看到出神，別直視太久。" },
+    { speaker: "K", text: "看一眼就出神？那我閉著眼睛打行不行。" },
+    { speaker: "L", text: "行的話我第一個學你。" },
+    { speaker: "K", text: "嗚、好啦……" },
+    { speaker: "K", text: `${displayName("主角")}，穩住陣腳，我們上吧。` },
+  ];
+}
+// 作弊補記：把「被作弊跳過、沒真的播」的主線段落，直接記進劇情回顧（不播、只補記）。
+// recordStoryLog 以 id 為鍵、內容相同時覆蓋，所以重複呼叫是安全的（也能修復「這個修正之前就作弊過」的舊存檔）。
+const CHEAT_BACKFILL_LINES = {
+  第一層Boss門前: storyLinesLayer1BossDoor,
+  救出L:          storyLinesRescueL,
+  第二層Boss門前: storyLinesLayer2BossDoor,
+  第二層結局:     storyLinesLayer2Ending,
+  第三層Boss門前: storyLinesLayer3BossDoor,
+};
+function cheatBackfillStory() {
+  for (let i = 0; i < arguments.length; i++) {
+    let key = arguments[i];
+    if (CHEAT_BACKFILL_LINES[key] && STORY_SEG[key]) recordStoryLog(STORY_SEG[key], CHEAT_BACKFILL_LINES[key]());
+  }
+}
+
 // ---------- 圈層工具（深潛系統依 activeDive.layer 取用對應的節點配置／怪物池／Boss） ----------
 function getLayerConfig(layer) {
   return LAYER_NODE_CONFIGS[layer] || LAYER1_NODE_CONFIG;
@@ -202,44 +314,19 @@ function renderDiveScreen() {
   // 不然玩家全滅或撤退後重新出征、再次走到最後一格，這段劇情會重複播放。
   if (nodeIndex === depth - 1 && layer === 1 && !gameState.storyFlags.bossDoorShown) {
     gameState.storyFlags.bossDoorShown = true;
-    playDialogue([
-      { speaker: "K", text: "等一下。" },
-      { speaker: "", text: "K 的表情嚴肅起來。" },
-      { speaker: "K", text: "……感覺不對。" },
-      { speaker: "", text: "V 點了一下頭，握緊刀柄。" },
-      { speaker: "K", text: "有東西在前面。我不確定那是什麼……但 L 失蹤的地方，就在這附近。" },
-      { speaker: "K", text: "如果 L 還被困在裡面，我們必須過去。" },
-      { speaker: "K", text: `${displayName("主角")}，走吧。` },
-    ], renderDiveScreen, { id: "第一層Boss門前", title: "第一圈層・Boss 門前", order: 10 });
+    playDialogue(storyLinesLayer1BossDoor(), renderDiveScreen, STORY_SEG.第一層Boss門前);
     return;
   }
   // 第二層 Boss 門前（巨岩蚺）第一次抵達
   if (nodeIndex === depth - 1 && layer === 2 && !gameState.storyFlags.boss2DoorShown) {
     gameState.storyFlags.boss2DoorShown = true;
-    playDialogue([
-      { speaker: "", text: "前方的通道被一堆巨大的石頭堵住了大半。" },
-      { speaker: "K", text: "咦，這……" },
-      { speaker: "L", text: "那不全是石頭。" },
-      { speaker: "", text: "L 的聲音壓得很低。" },
-      { speaker: "V", text: "……在呼吸。別靠太近。" },
-      { speaker: "K", text: "藥材就在牠守著的地方？" },
-      { speaker: "L", text: "依我的記憶，多半是。" },
-      { speaker: "K", text: `${displayName("主角")}，小心點。這傢伙……不好惹。` },
-    ], renderDiveScreen, { id: "第二層Boss門前", title: "第二圈層・Boss 門前", order: 30 });
+    playDialogue(storyLinesLayer2BossDoor(), renderDiveScreen, STORY_SEG.第二層Boss門前);
     return;
   }
   // 第三層 Boss 門前（花尾）第一次抵達
   if (nodeIndex === depth - 1 && layer === 3 && !gameState.storyFlags.boss3DoorShown) {
     gameState.storyFlags.boss3DoorShown = true;
-    playDialogue([
-      { speaker: "", text: "前方的風忽然停了。整片風谷安靜得不自然。" },
-      { speaker: "V", text: "……前面有東西。" },
-      { speaker: "L", text: "小心牠的尾羽。我在遠處瞥過一眼……那紋路會讓人看到出神，別直視太久。" },
-      { speaker: "K", text: "看一眼就出神？那我閉著眼睛打行不行。" },
-      { speaker: "L", text: "行的話我第一個學你。" },
-      { speaker: "K", text: "嗚、好啦……" },
-      { speaker: "K", text: `${displayName("主角")}，穩住陣腳，我們上吧。` },
-    ], renderDiveScreen, { id: "第三層Boss門前", title: "第三圈層・Boss 門前", order: 45 });
+    playDialogue(storyLinesLayer3BossDoor(), renderDiveScreen, STORY_SEG.第三層Boss門前);
     return;
   }
 
@@ -391,43 +478,7 @@ function handleLayer1BossVictory() {
     return;
   }
 
-  playDialogue([
-    { speaker: "", text: "島鯨龐大的身軀漸漸沉入水底，不再動彈。" },
-    { speaker: "", text: "水面下傳出微弱的動靜，然後是氣泡——一個人浮了上來，銀白色的長髮在水中漂浮。" },
-    { speaker: "K", text: "——L！！" },
-    { speaker: "", text: "K、V 和你一起把人拉上岸邊。那人咳了些水，癱坐在地喘著氣，綠眼睛半閉著。" },
-    { speaker: "", text: "K 一把抱住了他。" },
-    { speaker: "K", text: "……找到了，終於找到了……" },
-    { speaker: "", text: "V 蹲下來輕拍著 K 的肩膀，深藍的眸子卻看向你。他眨了眨眼。" },
-    { speaker: "", text: "你從那個眼神讀出了一絲感謝。" },
-    { speaker: "", text: "……" },
-    // ---- 回到避難所後：L 恢復、道謝，K 的真心話 ----
-    { speaker: "", text: "回到避難所。L 靠著棚子的牆坐了很久，K 替他重新包紮了傷，又硬塞了半壺水過去。" },
-    { speaker: "", text: "過了好一會，L 的臉色終於有了點血色。" },
-    { speaker: "K", text: "……感覺怎麼樣？還撐得住嗎？" },
-    { speaker: "L", text: "死不了。" },
-    { speaker: "L", text: "……我沒事了。別這樣盯著我，怪滲人的。" },
-    { speaker: "K", text: "哈，還有力氣嫌我，那就真的沒事了。" },
-    { speaker: "", text: "L 轉向你，沉默了一下。" },
-    { speaker: "L", text: "你……我們素昧平生。" },
-    { speaker: "L", text: "謝謝你。為不認識的人冒險，這種傻事一般人是不會做的。" },
-    { speaker: "V", text: "他是在道謝。" },
-    { speaker: "", text: "V 小聲地說，L 瞥了他一眼。" },
-    { speaker: "L", text: "我知道我在說什麼。" },
-    { speaker: "", text: "L 站起身，環顧避難所，目光在幾個空掉的架子上停了停。" },
-    { speaker: "L", text: "魔藥的庫存……全空了，補血藥也剩得不多。這段日子，你們過得很省吧。" },
-    { speaker: "L", text: "補血藥很簡單，我來做。以後每次出發前，我都會幫你把補血藥補滿，不用再花潛晶買了。" },
-    { speaker: "L", text: "魔藥就不行了，需要特定的藥材。我之前看到過幾種還算合適的素材，既然要往下走，順路去找找看吧。" },
-    { speaker: "", text: "K 張了張嘴，似乎想說什麼，最後又把話嚥了回去。" },
-    { speaker: "L", text: "……我去把製藥的工具整理一下。" },
-    { speaker: "", text: "L 撐著牆站起來，慢慢走向工坊。" },
-    { speaker: "", text: "等 L 走遠，K 才壓低了聲音。" },
-    { speaker: "K", text: "他嘴上不饒人。其實我們三個裡面，最想帶著大家離開潛淵的，就是他。" },
-    { speaker: "K", text: "V 的腳有舊傷，在這種地方根本沒法好好養；我喜歡嘗試各種市井小菜，但在這什麼都缺的鬼地方，連這點念想都算奢侈。" },
-    { speaker: "V", text: "……嗯。" },
-    { speaker: "K", text: "L 一直說，一定有辦法出去的。回到潛淵之上，去過我們該有的、平凡但珍貴的日子。我、V，我們都想相信他。" },
-    { speaker: "K", text: `能重新聚在一起……真的太好了。謝謝你，${displayName("主角")}。` },
-  ], () => applyShelterReturn("boss"), { id: "救出L", title: "第一圈層・救出 L", order: 20 });
+  playDialogue(storyLinesRescueL(), () => applyShelterReturn("boss"), STORY_SEG.救出L);
 }
 
 function handleLayer2BossVictory() {
@@ -440,17 +491,8 @@ function handleLayer2BossVictory() {
     applyShelterReturn("boss");
     return;
   }
-  playDialogue([
-    { speaker: "", text: "巨岩蚺龐大的身軀癱軟下來，石堆轟然崩落，揚起漫天塵灰。" },
-    { speaker: "L", text: "……成了。" },
-    { speaker: "", text: "L 蹲下身，在崩塌的碎石與那東西守著的角落裡翻找，採集了些什麼，仔細收好。" },
-    { speaker: "L", text: "夠了。這些拿回去，應該能做出像樣的藥。有一些想法可以嘗試。" },
-    // 外敷機制解說：戰鬥裡「直飲／外敷」兩顆按鈕在此戰後解鎖，保留說明讓玩家知道多了一種用法。
-    { speaker: "L", text: "比如說補血藥……不一定要一口喝下去。如果敷在傷口上，或許能讓效果更好，只是生效比較慢。" },
-    { speaker: "L", text: "回去我試著做一批新的。" },
-    { speaker: "K", text: "……又一個區域。" },
-    { speaker: "L", text: "嗯，往下只會更難走。" },
-  ], () => applyShelterReturn("boss"), { id: "第二層結局", title: "第二圈層・巨岩蚺之後", order: 40 });
+  // 台詞已抽成 storyLinesLayer2Ending()（含「外敷」解說句）；正常播放與作弊補記共用同一份。
+  playDialogue(storyLinesLayer2Ending(), () => applyShelterReturn("boss"), STORY_SEG.第二層結局);
 }
 
 // 第三層 Boss（花尾）勝利。設 layer3Cleared 旗標；首通播一段風谷戰後收尾。
@@ -506,6 +548,8 @@ function cheatPrepMarkLayer1Seen() {
 // 作弊：打完第一層——播放島鯨戰後「救出 L」的完整結局劇情，再回避難所（方便驗證這段劇情）。
 function cheatCompleteLayer1() {
   cheatPrepMarkLayer1Seen();
+  // 補記「被跳過、沒真的播」的段落到劇情回顧：第一層 Boss 門前（救出L 由 handleLayer1BossVictory 播、會自動記）
+  cheatBackfillStory("第一層Boss門前");
   if (gameState.storyFlags.lRescued) {
     showShelterScreen();
     systemToast("第一圈層已經打完過了。");
@@ -523,6 +567,8 @@ function cheatCompleteLayer2() {
   gameState.storyFlags.lRescued = true;
   gameState.storyFlags.boss2DoorShown = true;
   syncLRoster();
+  // 補記被跳過的段落：第一層Boss門前、救出L、第二層Boss門前（第二層結局由 handleLayer2BossVictory 播、自動記）
+  cheatBackfillStory("第一層Boss門前", "救出L", "第二層Boss門前");
   if (gameState.storyFlags.layer2Cleared) {
     showShelterScreen();
     systemToast("第二圈層已經打完過了。");
@@ -541,6 +587,8 @@ function cheatCompleteLayer3() {
   gameState.storyFlags.layer2Cleared = true;
   gameState.storyFlags.potionApplyUnlocked = true;
   syncLRoster();
+  // 補記被跳過的段落：前面所有 Boss 門前＋救出L＋第二層結局（第三層結局由 handleLayer3BossVictory 播、自動記）
+  cheatBackfillStory("第一層Boss門前", "救出L", "第二層Boss門前", "第二層結局", "第三層Boss門前");
   if (gameState.storyFlags.layer3Cleared) {
     showShelterScreen();
     systemToast("第三圈層已經打完過了。");

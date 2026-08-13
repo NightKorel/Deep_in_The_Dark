@@ -389,6 +389,7 @@ body {
   padding: 30px;
 }
 .dialogue-box {
+  position: relative; /* 讓「跳過」鈕能絕對定位在右上角外側 */
   background: linear-gradient(160deg, #171b21 0%, #10131a 100%);
   border: 1px solid #3a3f4b;
   border-radius: 12px;
@@ -397,6 +398,22 @@ body {
   width: 100%;
   box-shadow: 0 10px 30px rgba(0,0,0,0.6);
 }
+/* 「跳過這段劇情」：釘在對話框右上角、稍微露出框外一點點（不要太遠）。 */
+.dialogue-skip-btn {
+  position: absolute;
+  top: -14px;
+  right: -2px;
+  background: #1a1d24;
+  border: 1px solid #3a3f4b;
+  color: #8b949e;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.dialogue-skip-btn:hover { border-color: #4fa8d8; color: #4fa8d8; }
 .dialogue-speaker { color: #4fa8d8; font-weight: bold; margin-bottom: 6px; font-size: 15px; min-height: 1em; }
 .dialogue-text { white-space: pre-wrap; min-height: 3em; }
 .dialogue-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }

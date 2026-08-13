@@ -432,10 +432,13 @@ const LAYER_MONSTER_POOLS = { 1: LAYER1_MONSTER_POOL, 2: LAYER2_MONSTER_POOL, 3:
 // ⚠️ 血量與傷害「都要」乘（納可特別叮嚀：怪變強＝生命值和攻擊力都變強），套用在小怪／菁英／Boss。
 //   Boss 也套同一個層倍率（納可要求：Boss 勝率不能比小怪高；小怪變硬時 Boss 一起變硬，維持 Boss ≤ 小怪）。
 // hp/dmg 分開兩張表，方便日後微調其中一個。用工具實測抓到的值：
-// 實測（scripts/難度檢查.js，只普攻裸模型）：3.2/4.2 時「裝備＝層數」的小怪勝率約 17%，
-//   往上調到 4.0/5.2 讓它落到 10% 以下、又不到 0%（同層 Boss 全程 0% 起、穩定 ≤ 小怪，符合納可要求）。
-const LAYER_MONSTER_HP_MULT  = { 1: 1, 2: 4.0, 3: 5.2 }; // 每層血量倍率（指數感；工具實測抓值）
-const LAYER_MONSTER_DMG_MULT = { 1: 1, 2: 4.0, 3: 5.2 }; // 每層傷害倍率（跟血量同步上升）
+// 【血量與傷害拆開調（納可 2026-08-13 實玩定案）】：難度靠「怪耐打＝消耗戰」，不是「一拳秒殺」。
+//   · 血量倍率維持 17% 版的 3.2/4.2（怪一樣肉、要打好幾下）。
+//   · 傷害倍率「單獨」大幅調低到 1.5/1.8——原本傷害也 ×3.2 會秒殺（例：垂垂耳猛撞 [8,12]×3.2=[26,38]
+//     >角色滿血 23~31，一拳斃命）；降到 ×1.5=[12,18] 會痛、要喝藥，但不會秒殺。
+//   （Boss 一樣吃這兩個倍率；血量 ≤ 小怪的關係不受影響。）
+const LAYER_MONSTER_HP_MULT  = { 1: 1, 2: 3.2, 3: 4.2 }; // 每層血量倍率（怪耐打＝難度主力）
+const LAYER_MONSTER_DMG_MULT = { 1: 1, 2: 1.5, 3: 1.8 }; // 每層傷害倍率（刻意壓低、避免秒殺）
 function getLayerHpMult(layer)  { return LAYER_MONSTER_HP_MULT[layer]  || 1; }
 function getLayerDmgMult(layer) { return LAYER_MONSTER_DMG_MULT[layer] || 1; }
 // 圈層基本資料：深潛系統與圈層選擇畫面共用。
