@@ -17,7 +17,7 @@ const POTION_HOT_DURATION = 3;   // 外敷：持續回合數（15%×3＝總量45
 // 強化系統（納可 2026-08-12 拍板：改「很久才升一次，但一次有感」）：
 //   幅度加大（每級 +25%），成本指數上漲（越高級越貴，×2 成長），配合潛晶隨層指數上漲。
 // 升級費用：Lv1=10，之後每級 ×2 無條件進位（10→20→40→80→160…）＝指數成長，後期強化是要存一陣子的大投資。
-const UPGRADE_COST_BY_LEVEL = [0, 10, 20, 40, 80, 160];
+const UPGRADE_COST_BY_LEVEL = [0, 10, 15, 23, 35, 53];
 function getUpgradeCost(currentLevel) {
   // currentLevel 是目前等級，升到 currentLevel+1 要付 UPGRADE_COST_BY_LEVEL[currentLevel+1]
   let targetLevel = currentLevel + 1;
@@ -25,11 +25,11 @@ function getUpgradeCost(currentLevel) {
   // 超出表格範圍的話，沿用同樣 ×2 無條件進位的規律往下推算
   let cost = UPGRADE_COST_BY_LEVEL[UPGRADE_COST_BY_LEVEL.length - 1];
   for (let lv = UPGRADE_COST_BY_LEVEL.length; lv <= targetLevel; lv++) {
-    cost = Math.ceil(cost * 2);
+    cost = Math.ceil(cost * 1.5);
   }
   return cost;
 }
-const UPGRADE_GROWTH_RATE = 1.25; // 武器/裝備每級成長倍率（+25%，一次強化就有明顯提升）
+const UPGRADE_GROWTH_RATE = 1.10; // 武器/裝備每級成長倍率（退回原本 +10%）
 
 // 經驗值曲線：index = 目前等級，值 = 從這一級升到下一級所需的經驗
 const EXP_CURVE = [0, 30, 100, 300];
@@ -437,8 +437,10 @@ const LAYER_MONSTER_POOLS = { 1: LAYER1_MONSTER_POOL, 2: LAYER2_MONSTER_POOL, 3:
 //   · 傷害倍率「單獨」大幅調低到 1.5/1.8——原本傷害也 ×3.2 會秒殺（例：垂垂耳猛撞 [8,12]×3.2=[26,38]
 //     >角色滿血 23~31，一拳斃命）；降到 ×1.5=[12,18] 會痛、要喝藥，但不會秒殺。
 //   （Boss 一樣吃這兩個倍率；血量 ≤ 小怪的關係不受影響。）
-const LAYER_MONSTER_HP_MULT  = { 1: 1, 2: 3.2, 3: 4.2 }; // 每層血量倍率（怪耐打＝難度主力）
-const LAYER_MONSTER_DMG_MULT = { 1: 1, 2: 1.5, 3: 1.8 }; // 每層傷害倍率（刻意壓低、避免秒殺）
+// 【暫時全部設 1.0 ＝退回原本難度（納可 2026-08-13）】：這套倍率實玩後決定先整個收回，讓怪用原本的基礎
+//   hpRange/dmgRange（數字小、跟動手前一樣）。接線(06)還在、×1＝無作用；之後重新設計難度再把值改回>1。
+const LAYER_MONSTER_HP_MULT  = { 1: 1, 2: 1, 3: 1 }; // 退回原本：不加成
+const LAYER_MONSTER_DMG_MULT = { 1: 1, 2: 1, 3: 1 }; // 退回原本：不加成
 function getLayerHpMult(layer)  { return LAYER_MONSTER_HP_MULT[layer]  || 1; }
 function getLayerDmgMult(layer) { return LAYER_MONSTER_DMG_MULT[layer] || 1; }
 // 圈層基本資料：深潛系統與圈層選擇畫面共用。
@@ -461,7 +463,7 @@ const CRYSTAL_DROP = {
 };
 // 圈層獎勵倍率（納可 2026-08-12 拍板：改指數上漲）：每深一層，小怪掉的潛晶指數上升（約 ×1.8/層），
 //   跟「強化成本 ×2/級」配套——越深賺越多、但強化也越貴，維持「刷 2~3 趟才升一次裝備」的節奏，不通膨也不卡死。
-const LAYER_REWARD_MULT = { 1: 1, 2: 1.8, 3: 3.2 };
+const LAYER_REWARD_MULT = { 1: 1, 2: 1.25, 3: 1.5 };
 // 探索類（隨機事件／奇異地形／寶藏）撿到的潛晶，越深的圈層給越多。刻意比戰鬥倍率(1.25)更明顯一點，
 // 讓「往更深處探索」本身就有回報；但一樣壓在合理範圍，別把玩家養太肥。
 const LAYER_FIND_MULT = { 1: 1, 2: 1.5, 3: 2 };
