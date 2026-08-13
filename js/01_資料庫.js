@@ -36,7 +36,8 @@ function getTrainUpgradeCost(currentTrainLevel) {
 
 // 技能解鎖成本：照該技能在角色技能池裡的位置。第 1 招（idx 0）免費送、其餘要花潛晶解鎖（一次性）。
 // 之後加新角色只要技能照 skillIds 順序排好即可；技能數超過表長就沿用最後一格的價。
-const SKILL_UNLOCK_COSTS = [0, 40, 75, 120];
+// 【納可 2026-08-13：技能別收太兇——四個技能不一定比較有用，價格放寬，省下的潛晶能拿去升歷練、節奏更順。】
+const SKILL_UNLOCK_COSTS = [0, 25, 45, 70];
 function getSkillUnlockCost(charId, skillId) {
   let idx = CHARACTERS[charId].skillIds.indexOf(skillId);
   if (idx <= 0) return 0; // 找不到或第 1 招 → 免費
