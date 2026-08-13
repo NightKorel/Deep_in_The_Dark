@@ -572,7 +572,7 @@ function skillDescForDisplay(skill, charId) {
   if (skill.type === "party-dmg-buff") return `全隊下次攻擊傷害 +${Math.round(skill.dmgBuffPercent * 100)}%`;
   if (skill.type === "self-charge") return `下次任意攻擊傷害 ×${skill.chargeMultiplier}`;
   if (skill.type === "self-dodge") return `這回合自身閃避率 +${Math.round(skill.dodgeChance * 100)}%`;
-  if (skill.type === "damage-reduction") return `單一隊友減傷 ${Math.round(skill.damageReduction * 100)}%，持續 ${skill.duration} 回合`;
+  if (skill.type === "damage-reduction") return `${skill.targetType === "self" ? "自身" : "單一隊友"}減傷 ${Math.round(skill.damageReduction * 100)}%，持續 ${skill.duration} 回合`;
   return "";
 }
 

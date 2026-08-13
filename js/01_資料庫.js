@@ -129,11 +129,11 @@ const SKILLS = {
   },
   K_風刃: {
     id: "K_風刃", name: "風刃", owner: "K", type: "attack",
-    targetType: "all-enemies", dmgRange: [1, 3], maxUses: 20,
+    targetType: "all-enemies", dmgRange: [2, 4], maxUses: 20, // 納可：傷害調高一點點（本來就是單次全體，好調）
   },
   K_雙擊: {
     id: "K_雙擊", name: "雙擊", owner: "K", type: "attack",
-    targetType: "single-enemy", dmgRange: [1, 4], maxUses: 10, hits: 2,
+    targetType: "single-enemy", dmgRange: [2, 5], maxUses: 10, hits: 2, // 納可：傷害調高一點點（維持2段）
   },
   K_輕靈: {
     id: "K_輕靈", name: "輕靈", owner: "K", type: "party-dmg-buff",
@@ -154,8 +154,8 @@ const SKILLS = {
     targetType: "self", chargeMultiplier: 2, maxUses: 3,
   },
   V_隱步: {
-    id: "V_隱步", name: "隱步", owner: "V", type: "self-dodge",
-    targetType: "self", dodgeChance: 0.50, maxUses: 3,
+    id: "V_隱步", name: "隱步", owner: "V", type: "damage-reduction",
+    targetType: "self", damageReduction: 0.50, duration: 1, maxUses: 3, // 納可：閃避(RNG看運氣)太廢，改成穩定減傷 50%
   },
 
   // ===== L（Lv1~4）=====
@@ -173,7 +173,7 @@ const SKILLS = {
   },
   L_霜爆: {
     id: "L_霜爆", name: "霜爆", owner: "L", type: "attack",
-    targetType: "all-enemies", dmgRange: [4, 6], maxUses: 3,
+    targetType: "all-enemies", dmgRange: [5, 7], maxUses: 3, // 納可：全體傷害調高一點點
   },
 };
 
@@ -488,12 +488,13 @@ const CRYSTAL_DROP = {
   菁英: [7, 11],
   Boss: [12, 18],
 };
-// 圈層獎勵倍率（納可 2026-08-12 拍板：改指數上漲）：每深一層，小怪掉的潛晶指數上升（約 ×1.8/層），
-//   跟「強化成本 ×2/級」配套——越深賺越多、但強化也越貴，維持「刷 2~3 趟才升一次裝備」的節奏，不通膨也不卡死。
-const LAYER_REWARD_MULT = { 1: 1, 2: 1.25, 3: 1.5 };
-// 探索類（隨機事件／奇異地形／寶藏）撿到的潛晶，越深的圈層給越多。刻意比戰鬥倍率(1.25)更明顯一點，
-// 讓「往更深處探索」本身就有回報；但一樣壓在合理範圍，別把玩家養太肥。
-const LAYER_FIND_MULT = { 1: 1, 2: 1.5, 3: 2 };
+// 圈層獎勵倍率（越深賺越多，跟「歷練成本 ×2/級」配套，讓收入追得上升級——寧可大方，別虧待玩家）。
+//   【納可 2026-08-13：這是「每層各自手調的一張表」，不是固定公式——之後第 4/5 層要多少就填多少、該多給就多給，
+//     不用每層乘一樣的倍率；重點是別讓玩家刷得要死還升不動（升級成本 ×2 很兇，收入要跟得上、甚至更慷慨）。】
+//   目前值：L2=1.8、L3=3.2（越深給越多）。之後深層若還嫌升太慢，就把那層的值再往上加。
+const LAYER_REWARD_MULT = { 1: 1, 2: 1.8, 3: 3.2 };
+// 探索類（隨機事件／奇異地形／寶藏）撿到的潛晶：刻意比戰鬥倍率再明顯一點，讓「往更深處探索」本身就有回報。同樣每層可各自調。
+const LAYER_FIND_MULT = { 1: 1, 2: 2, 3: 3.6 };
 // 混戰中打死寶箱怪的額外獎勵（疊加在原本的戰鬥獎勵之上）：50%機率潛晶大獎，50%機率潛晶小獎+1個隨機遺物
 const MIMIC_BONUS_CRYSTAL_BIG = [8, 12];
 const MIMIC_BONUS_CRYSTAL_SMALL = [4, 6];
