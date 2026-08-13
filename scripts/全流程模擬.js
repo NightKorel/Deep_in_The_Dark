@@ -16,7 +16,8 @@
 //   · 探索：貪一點——強制戰鬥照打，能選菁英/小怪的節點就打（賺潛晶＋逼出資源消耗）；血量低於門檻的休息點就補血。
 //   · 戰鬥：用 js/10_戰鬥AI.js 的聰明 AI（全角色共用那份）。
 //   · 避難所花錢：先把買得起的技能一個個解鎖（一次性、強），再把潛晶拿去升「歷練最低的人」。
-//   · 保守假設：只把「戰鬥掉的潛晶」算進收入（寶藏/事件/商店的額外潛晶沒算），所以是偏保守的下限估計。
+//   · 潛晶收入：戰鬥掉的 ＋ 寶藏節點（真實公式 3~8 × 層倍率）＋ 事件節點（估：一半機率給寶藏級潛晶）。
+//     奇異地形（安全增益）/商店（淨支出）/賭局（風險）保守略過——所以仍偏保守，但比「只算戰鬥」準很多。
 // ============================================================
 const { chromium } = require('playwright');
 const path = require('path');
@@ -91,12 +92,15 @@ const REST_HEAL_THRESHOLD = 0.6; // 隊伍平均血量低於此比例，遇到�
       let cfg = LAYER_NODE_CONFIGS[layer];
       let crystalStart = gameState.crystal, battles = 0, wiped = false;
 
+      let findMult = LAYER_FIND_MULT[layer] || 1;
       for (let i = 0; i < cfg.length - 1; i++) { // 最後一格是 Boss，另外處理
         let opts = cfg[i].options;
         if (opts.includes('elite')) { let r = await runBattle(drawRandomMonsters(false), { isElite: true }); battles++; if (r.wiped) { wiped = true; break; } }
         else if (opts.includes('monster')) { let r = await runBattle(drawRandomMonsters(false), {}); battles++; if (r.wiped) { wiped = true; break; } }
+        else if (opts.includes('treasure')) { gameState.crystal += Math.round(randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]) * findMult); } // 寶藏：拿潛晶（真實公式：3~8 × 層倍率）
+        else if (opts.includes('event')) { if (chance(0.5)) gameState.crystal += Math.round(randInt(TREASURE_CRYSTAL_RANGE[0], TREASURE_CRYSTAL_RANGE[1]) * findMult); } // 事件：混合的，估「一半機率給寶藏級潛晶」
         else if (opts.includes('rest')) { if (partyAvgHpPct() < REST_HEAL_THRESHOLD) healPartyFull(); }
-        // 其餘節點（event/oddity/treasure/shop/cost_exchange/gamble）：保守起見不算額外潛晶、不處理
+        // 其餘（oddity=安全增益不給潛晶／shop=淨支出／gamble=風險）：保守略過
       }
 
       if (wiped) return { reachedBoss: false, bossWin: false, battles, crystalEarned: gameState.crystal - crystalStart };
