@@ -534,6 +534,25 @@ function advanceDialogue() {
   showNextDialogueLine();
 }
 
+// 「跳過這段劇情」：快轉掉接下來的純台詞/旁白，直到遇到需要玩家操作的行（選項/輸入名字）或整段結束。
+// 劇情回顧不受影響——playDialogue 一開始就把整段記進 storyLog 了，跳過只是不逐句看，不會漏記。
+// 每個被跳過的行照樣執行它的 onShown（有些行有推進狀態的副作用），維持跟一句句按「繼續」一樣的結果。
+function skipDialogue() {
+  clearDialogueTimers();
+  while (dialogueQueue.length > 0) {
+    let line = dialogueQueue[0];
+    // 遇到要玩家操作的行（選項/輸入名字）就停下來，正常顯示它、把決定權交還玩家。
+    if (line.textInput || (line.choices && line.choices.length > 0)) {
+      showNextDialogueLine();
+      return;
+    }
+    if (line.onShown) line.onShown();
+    dialogueQueue.shift();
+  }
+  // 沒有互動行了 → 佇列已空，showNextDialogueLine 會收掉對話框並呼叫 onComplete。
+  showNextDialogueLine();
+}
+
 // Auto 按鈕：循環「關→慢→中→快→關」，並記住選擇（存進 gameState.settings.autoMode）。
 function cycleDialogueAuto() {
   if (!gameState.settings) gameState.settings = {};

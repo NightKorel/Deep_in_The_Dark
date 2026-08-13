@@ -730,6 +730,8 @@ function showDepartScreen() {
   showScreen(`
     <h2 class="screen-title">整備出發</h2>
     <p class="dim">出發前小隊會恢復到滿血滿狀態，技能次數也會全部回滿。</p>
+    ${departLayerChoiceHtml()}
+    <p class="dim" style="margin:14px 0 4px;">↓ 以下是料理／補血藥的攜帶調整，想微調再展開就好（不調也沒關係）。</p>
     <div class="card">
       <strong>🧪 補血藥</strong>
       ${gameState.storyFlags.lRescued
@@ -747,7 +749,6 @@ function showDepartScreen() {
     </div>
     <div class="card"><h3>隊員攜帶料理</h3><div class="food-assign-row">${rows}</div></div>
     ${potionSectionHtml}
-    ${departLayerChoiceHtml()}
     <button class="action-btn secondary" onclick="showHomeScreen()">返回</button>
   `, { withTopbar: true });
 }
