@@ -117,7 +117,7 @@ const TEAM_STAGES = [
       for (let i = 0; i < N; i++) {
         let group, opts;
         if (kind === 'boss') { group = [getLayerBoss(layer)]; opts = { isBoss: true }; }
-        else { group = drawRandomMonsters(false); opts = { isElite: kind === 'elite' }; }
+        else { group = drawRandomMonsters(false, 3); opts = { isElite: kind === 'elite' }; } // 固定 3 隻小怪（最硬的情況）量難度
         let r = await runOne(group, opts);
         if (r.win) wins++;
         hpSum += r.hpLeft;
