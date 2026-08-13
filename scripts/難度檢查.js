@@ -11,16 +11,18 @@
 //   2. 執行：NODE_PATH=./node_modules node scripts/難度檢查.js
 //   3. 看輸出的「勝率%／剩血%」表：勝率越低＋剩血越少＝越難。
 //
-// 自動玩家策略（刻意做成「基礎操作」）：血<40%且有補血藥就喝；否則用最強單體攻擊技能（有次數），
-//   沒有就普攻；目標挑第一個活著的敵人。→ 這是「偏弱的玩家」，真實玩家還有食物/魔藥/更好的操作，
-//   所以怪的數值要調到「這個弱化模型都覺得有點難」，真實玩家才會剛好。
+// 自動玩家策略（納可 2026-08-12 拍板：改成「只普攻、完全不用技能」的最裸模型）：
+//   血<40%且有補血藥就喝；否則一律【普攻】（不碰任何技能）；目標挑第一個活著的敵人。
+//   → 這是「最弱的玩家」，真實玩家還有技能＋食物＋魔藥＋遺物＋成就會強很多，
+//   所以怪要調到「連這個只會普攻的裸模型都偏難」，真實玩家才會剛好。
+//   難度目標：拿「裝備等級＝層數」的隊伍打「同層小怪」，勝率要很低（5~25%）。
 //
 // 成長階段（TEAM_STAGES）是對「刷第幾趟」的粗略假設，之後可依實際經濟（經驗/潛晶收入）再校準。
 // ============================================================
 const { chromium } = require('playwright');
 const path = require('path');
 
-const N = 12;                    // 每組跑幾場（12 夠看趨勢又快；要更穩的數字再往上調）
+const N = 16;                    // 每組跑幾場（16：目標落在 10% 邊界附近，多跑幾場降低雜訊）
 const LAYERS = [1, 2, 3];        // 要測哪些層
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
@@ -96,9 +98,9 @@ const TEAM_STAGES = [
             let tgt = activeBattle.enemies.find(e => e.hp > 0 && !e.escaped && !e.burrowed);
             if (m.hp / m.maxHp < 0.4 && gameState.potions > 0) battleDrinkPotion(id);
             else if (tgt) {
-              let sk = bestAttackSkill(id, m);
-              if (sk) { battleUseSkill(id, sk); if (activeBattle && activeBattle.pendingAction) battleSelectTarget(tgt.uid, true); }
-              else { battleNormalAttack(id); if (activeBattle && activeBattle.pendingAction) battleSelectTarget(tgt.uid, true); }
+              // 納可拍板：裸模型只用普攻、完全不用技能
+              battleNormalAttack(id);
+              if (activeBattle && activeBattle.pendingAction) battleSelectTarget(tgt.uid, true);
             }
           }
         }
@@ -139,7 +141,8 @@ const TEAM_STAGES = [
   }, { N, LAYERS, TEAM_STAGES });
 
   console.log('=== 潛淵 難度檢查（每組 ' + N + ' 場；勝率%／打完剩血%）===');
-  console.log('（自動玩家＝普攻+攻擊技能+血低喝藥的「弱化玩家」；真實玩家有食物/魔藥會更強→怪要調到這裡都偏難）\n');
+  console.log('（自動玩家＝只普攻+血低喝藥的「最裸模型」，不用任何技能；真實玩家有技能/食物/魔藥/遺物會強很多→怪要調到這裡都偏難）');
+  console.log('（難度目標：裝備等級＝層數 時，該層「小怪」勝率壓在 10% 以下、但不為 0）\n');
   for (let stage of Object.keys(result)) {
     console.log('【' + stage + '】');
     for (let layer of Object.keys(result[stage])) {

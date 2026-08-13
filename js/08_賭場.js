@@ -1136,11 +1136,12 @@ function casinoDoExchange() {
 
 // 交易所商品：只賣「一般版」食材與藥材（稀有版買不到），用代幣。
 // 賭場的東西不能影響強度，這些都是「消耗品」（食材煮料理、藥材製魔藥＝暫時性 buff），符合規則；純粹省得玩家一直刷。
-// 【定價（納可 2026-08-12 拍板）】不拆賣，一律「一組 5 個」：食材一組 50、藥材一組 100。
-//   理由：一局賭下來穩賺 50 起跳，原本一個食材才 3~5 代幣太便宜、失去意義；改成打包賣、拉高單價才有份量。
-const TRADEHOUSE_PACK = 5;            // 交易所不拆賣，一律「一組 5 個」
-const TRADEHOUSE_FOOD_PRICE = 50;     // 食材：一組 5 個 = 50 代幣
-const TRADEHOUSE_HERB_PRICE = 100;    // 藥材：一組 5 個 = 100 代幣
+// 【定價（納可 2026-08-12 二次拍板）】不拆賣，一律「一組 3 個」：食材一組 100、藥材一組 200。
+//   理由：打包 5 個 50 還是太便宜（一局賭下來輕鬆回本），改成每組 3 個、食材 100／藥材 200，
+//   讓「用代幣買素材」變成要認真賭一陣子才划算的選擇，不會廉價到失去意義。
+const TRADEHOUSE_PACK = 3;            // 交易所不拆賣，一律「一組 3 個」
+const TRADEHOUSE_FOOD_PRICE = 100;    // 食材：一組 3 個 = 100 代幣
+const TRADEHOUSE_HERB_PRICE = 200;    // 藥材：一組 3 個 = 200 代幣
 const TRADEHOUSE_MATERIALS = [
   { title: "🍖 食材（第一圈層）", kind: "food", price: TRADEHOUSE_FOOD_PRICE, ids: ["凝膠凍", "顎獸肉塊", "翅鱗魚片", "水藻脆球"] },
   { title: "🍗 食材（第二圈層）", kind: "food", price: TRADEHOUSE_FOOD_PRICE, ids: ["垂垂耳腿肉", "尖嘴鼠肉"] },

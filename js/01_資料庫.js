@@ -14,20 +14,22 @@ const POTION_HEAL_PERCENT = 0.30; // 補血藥回復比例（藥效強化增益�
 const POTION_HOT_PERCENT = 0.15; // 外敷：每回合回復最大血量比例（藥效強化時 ×1.5）
 const POTION_HOT_DURATION = 3;   // 外敷：持續回合數（15%×3＝總量45%，比直飲30%多、但延遲又怕被打斷，兩種用法各有取捨）
 
-// 升級費用：Lv1=10，之後每級 x1.5 無條件進位
-const UPGRADE_COST_BY_LEVEL = [0, 10, 15, 23, 35, 53];
+// 強化系統（納可 2026-08-12 拍板：改「很久才升一次，但一次有感」）：
+//   幅度加大（每級 +25%），成本指數上漲（越高級越貴，×2 成長），配合潛晶隨層指數上漲。
+// 升級費用：Lv1=10，之後每級 ×2 無條件進位（10→20→40→80→160…）＝指數成長，後期強化是要存一陣子的大投資。
+const UPGRADE_COST_BY_LEVEL = [0, 10, 20, 40, 80, 160];
 function getUpgradeCost(currentLevel) {
   // currentLevel 是目前等級，升到 currentLevel+1 要付 UPGRADE_COST_BY_LEVEL[currentLevel+1]
   let targetLevel = currentLevel + 1;
   if (targetLevel < UPGRADE_COST_BY_LEVEL.length) return UPGRADE_COST_BY_LEVEL[targetLevel];
-  // 超出表格範圍的話，沿用同樣 x1.5 無條件進位的規律往下推算
+  // 超出表格範圍的話，沿用同樣 ×2 無條件進位的規律往下推算
   let cost = UPGRADE_COST_BY_LEVEL[UPGRADE_COST_BY_LEVEL.length - 1];
   for (let lv = UPGRADE_COST_BY_LEVEL.length; lv <= targetLevel; lv++) {
-    cost = Math.ceil(cost * 1.5);
+    cost = Math.ceil(cost * 2);
   }
   return cost;
 }
-const UPGRADE_GROWTH_RATE = 1.10; // 武器/裝備每級成長倍率
+const UPGRADE_GROWTH_RATE = 1.25; // 武器/裝備每級成長倍率（+25%，一次強化就有明顯提升）
 
 // 經驗值曲線：index = 目前等級，值 = 從這一級升到下一級所需的經驗
 const EXP_CURVE = [0, 30, 100, 300];
@@ -421,6 +423,21 @@ const LAYER3_MONSTER_POOL = ["擬巢怪", "掠禽", "青羽", "枝角翎"];
 // 圈層對應的 Boss 與各圈層的怪物池，讓深潛系統依 activeDive.layer 取用（見 05_深潛.js 的 getLayerXxx）。
 const LAYER_BOSS = { 1: "島鯨", 2: "巨岩蚺", 3: "花尾" };
 const LAYER_MONSTER_POOLS = { 1: LAYER1_MONSTER_POOL, 2: LAYER2_MONSTER_POOL, 3: LAYER3_MONSTER_POOL };
+
+// ---------- 怪物隨圈層指數變強（納可 2026-08-12 拍板）----------
+// 玩家的強化是乘法/指數成長（武器/防具 = base × 1.25^裝備等級），所以怪也要「每層血量＋傷害都指數上升」，
+// 難度曲線才穩定（玩家指數變強 vs 怪指數變強）。第一層＝基準 1.0、不動；第二層起每層乘一個層倍率。
+// 難度目標（納可拍板，用 scripts/難度檢查.js 的「只普攻裸模型」量）：
+//   拿「裝備等級＝層數」的隊伍打「同層小怪」，勝率要很低（5~25%）——因為真實玩家還有技能＋遺物＋食物＋魔藥。
+// ⚠️ 血量與傷害「都要」乘（納可特別叮嚀：怪變強＝生命值和攻擊力都變強），套用在小怪／菁英／Boss。
+//   Boss 也套同一個層倍率（納可要求：Boss 勝率不能比小怪高；小怪變硬時 Boss 一起變硬，維持 Boss ≤ 小怪）。
+// hp/dmg 分開兩張表，方便日後微調其中一個。用工具實測抓到的值：
+// 實測（scripts/難度檢查.js，只普攻裸模型）：3.2/4.2 時「裝備＝層數」的小怪勝率約 17%，
+//   往上調到 4.0/5.2 讓它落到 10% 以下、又不到 0%（同層 Boss 全程 0% 起、穩定 ≤ 小怪，符合納可要求）。
+const LAYER_MONSTER_HP_MULT  = { 1: 1, 2: 4.0, 3: 5.2 }; // 每層血量倍率（指數感；工具實測抓值）
+const LAYER_MONSTER_DMG_MULT = { 1: 1, 2: 4.0, 3: 5.2 }; // 每層傷害倍率（跟血量同步上升）
+function getLayerHpMult(layer)  { return LAYER_MONSTER_HP_MULT[layer]  || 1; }
+function getLayerDmgMult(layer) { return LAYER_MONSTER_DMG_MULT[layer] || 1; }
 // 圈層基本資料：深潛系統與圈層選擇畫面共用。
 const LAYERS_META = {
   1: { layer: 1, name: "淺水", subtitle: "第一圈層", themeColor: "#5aa9d6" }, // 淺藍
@@ -439,8 +456,9 @@ const CRYSTAL_DROP = {
   菁英: [7, 11],
   Boss: [12, 18],
 };
-// 圈層獎勵倍率：越深的圈層敵人越難，潛晶與經驗小幅上調，讓後期好賺一點；刻意只加一點點，別讓賭場以外的經濟膨脹太快。
-const LAYER_REWARD_MULT = { 1: 1, 2: 1.25, 3: 1.5 };
+// 圈層獎勵倍率（納可 2026-08-12 拍板：改指數上漲）：每深一層，小怪掉的潛晶指數上升（約 ×1.8/層），
+//   跟「強化成本 ×2/級」配套——越深賺越多、但強化也越貴，維持「刷 2~3 趟才升一次裝備」的節奏，不通膨也不卡死。
+const LAYER_REWARD_MULT = { 1: 1, 2: 1.8, 3: 3.2 };
 // 探索類（隨機事件／奇異地形／寶藏）撿到的潛晶，越深的圈層給越多。刻意比戰鬥倍率(1.25)更明顯一點，
 // 讓「往更深處探索」本身就有回報；但一樣壓在合理範圍，別把玩家養太肥。
 const LAYER_FIND_MULT = { 1: 1, 2: 1.5, 3: 2 };
@@ -492,16 +510,19 @@ const LAYER1_NODE_CONFIG = [
 const LAYER1_DEPTH = LAYER1_NODE_CONFIG.length;
 
 // 第二圈層節點配置（10 格，結構比照第一層；賭場節點🎲放在中後段）。
+// 【賭博只出現一次（納可 2026-08-12 拍板）】每張地圖最多只有「一個」賭博節點——所以 gamble
+//   只放在後段的第 9 格（跟第一層一樣「後段」，玩家這時通常攢了點潛晶）；第 6 格不再放 gamble，
+//   避免同一趟出現兩個🎲（第二個還是死節點）。未來每一層都遵守這條。
 const LAYER2_NODE_CONFIG = [
   { options: ["monster"] },                 // 第1格：單選，強制戰鬥
   { options: ["event", "oddity"] },         // 第2格
   { options: ["monster", "treasure"] },     // 第3格
   { options: ["rest", "cost_exchange"] },   // 第4格
   { options: ["monster"] },                 // 第5格：單選，強制戰鬥
-  { options: ["shop", "gamble"] },          // 第6格：商人 or 神秘賭局
+  { options: ["shop", "oddity"] },          // 第6格：商人 or 奇異地形（賭博已移到第9格，全圖只一個）
   { options: ["rest", "monster", "elite"] }, // 第7格：三選一
   { options: ["cost_exchange", "event"] },  // 第8格
-  { options: ["treasure", "gamble"] },      // 第9格：寶藏 or 神秘賭局
+  { options: ["treasure", "gamble"] },      // 第9格：寶藏 or 神秘賭局（全圖唯一的賭博節點）
   { options: ["boss"] },                    // 第10格：固定（巨岩蚺）
 ];
 const LAYER2_DEPTH = LAYER2_NODE_CONFIG.length;

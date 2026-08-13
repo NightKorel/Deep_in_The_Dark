@@ -54,6 +54,9 @@ function startBattle(monsterIds, options) {
 function buildEnemyInstance(monsterId, isElite, idx) {
   let monster = MONSTERS[monsterId];
   let baseHp = randInt(monster.hpRange[0], monster.hpRange[1]);
+  // 圈層血量倍率（納可拍板：怪隨層指數變強）：小怪／菁英／Boss 都套用同一個層倍率。
+  // Boss 也乘：這樣「Boss 勝率不會比小怪高」（納可要求）——小怪變硬時 Boss 也一起變硬，維持 Boss ≤ 小怪 的關係。
+  baseHp = Math.ceil(baseHp * getLayerHpMult(activeDive ? activeDive.layer : 1));
   let hp = isElite ? Math.ceil(baseHp * ELITE_HP_MULT) : baseHp;
   return {
     uid: monsterId + "_" + idx + "_" + Math.random().toString(36).slice(2, 7),
@@ -740,7 +743,10 @@ function dealDamageToAlly(enemy, allyId, dmgRange) {
     spawnFloatingNumber(allyId, "閃避", "miss");
     return { dmg: 0, miss: true, crit: false };
   }
-  let result = damageCalc(dmgRange, {
+  // 圈層傷害倍率（納可拍板：怪變強＝血量和攻擊力都變強）：小怪／菁英／Boss 都套用同一個層倍率。
+  let dmgMult = getLayerDmgMult(activeDive ? activeDive.layer : 1);
+  let scaledRange = dmgMult !== 1 ? [Math.ceil(dmgRange[0] * dmgMult), Math.ceil(dmgRange[1] * dmgMult)] : dmgRange;
+  let result = damageCalc(scaledRange, {
     target: m,
     targetGuard: m.guardActive,
     targetDmgReductionPercent: getAllyDamageTakenReduction(m),

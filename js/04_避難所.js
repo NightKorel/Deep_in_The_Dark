@@ -28,6 +28,20 @@ function showShelterScreen() {
   // L 救出後：每次回到避難所自動把補血藥補滿（L 負責後勤，補血藥材料現成、免費），玩家不必再花潛晶買。
   if (gameState.storyFlags.lRescued) gameState.potions = POTION_MAX;
   checkAchievements(); // 回避難所時統一檢查一次成就（等級/強化/潛晶/圖鑑/救出L等被動條件）
+  // 首次「避難所賭場」解鎖（打贏第二層＋遇過H）：播一段 H 跑來擺攤、三個夥伴無奈/困惑反應的登場劇情（只播一次）。
+  if (isShelterCasinoUnlocked() && !gameState.storyFlags.casinoShelterRevealed) {
+    gameState.storyFlags.casinoShelterRevealed = true;
+    playDialogue([
+      { speaker: "", text: "回到避難所，平台角落不知何時多了一頂花花綠綠的棚子，幾盞燈輕輕晃著，裡頭隱約傳出洗牌的聲音。" },
+      { speaker: "H", text: "哎呀～找了好久，總算摸到你們的小窩了。既然都混這麼熟了，攤子我就擺到你們家門口啦——以後想玩，不用大老遠跑來找我，方便吧？" },
+      { speaker: "K", text: "欸欸欸？你、你什麼時候在這裡的？這棚子又是打哪冒出來的……？" },
+      { speaker: "V", text: "……什麼時候跟上來的。" },
+      { speaker: "", text: "L 揉了揉眉心，嘆了口氣。" },
+      { speaker: "L", text: "算了……只要別擋到補給的路，隨他去吧。" },
+      { speaker: "H", text: "放心放心，我乖得很～ 想透口氣的時候，隨時歡迎光臨喔！" },
+    ], showShelterScreen, { id: "避難所賭場登場", title: "避難所・H 擺攤", order: 45 });
+    return;
+  }
   flushRelicIntro();   // 若剛拿到第一個遺物、當時在戰鬥中沒播成，回到避難所時補播 K 的解說
   showScreen(`
     <h2 class="screen-title">避難所</h2>

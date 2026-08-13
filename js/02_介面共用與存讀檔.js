@@ -29,6 +29,7 @@ let gameState = {
     layer3Cleared: false, // 是否已通關第三圈層（風谷）
     potionApplyUnlocked: false, // 是否已解鎖補血藥「外敷」用法（第二層Boss戰後L研發出來的新藥）
     firstRelicSeen: false, // 是否已經播過「第一次拿到遺物時 K 解釋潛淵怪現象」的台詞（只播一次）
+    casinoShelterRevealed: false, // 是否已經播過「H 在避難所擺攤、開賭場入口」的登場劇情（只播一次）
   },
   bestiary: {}, // { 凝膠: true, ... } 是否已經遇過該種怪物
   discoveredNodeTypes: {}, // { monster: true, oddity: true, ... } 是否已經遇過該種節點類型（沒遇過顯示？？？）
@@ -285,9 +286,17 @@ function openCheatModal() {
     <p class="dim" style="margin:0 0 6px;">跳過劇情：</p>
     <div class="cheat-chip-row">${skipChips}</div>
     <div style="margin-top:14px;">${maxLevelRow}</div>
+    <button class="action-btn" style="margin-top:8px;" onclick="cheatGiveCrystal()">💎 拿 100 潛晶</button>
     ${unlockCasinoRow}
     <button class="action-btn secondary" style="margin-top:8px;" onclick="closeGenericModal()">關閉</button>
   `);
+}
+
+// 測試用：直接發潛晶，方便測試員驗證強化／補藥／賭場等要花錢的功能（可重複點）。
+function cheatGiveCrystal() {
+  gameState.crystal += 100;
+  systemToast("💎 +100 潛晶。");
+  updateTopStatusBar();
 }
 
 // 測試用：直接解鎖避難所賭場（滿足 metH + layer2Cleared 兩條件），並給一點代幣本金。
