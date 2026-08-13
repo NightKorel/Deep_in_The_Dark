@@ -22,14 +22,15 @@ const POTION_HOT_DURATION = 3;   // 外敷：持續回合數（15%×3＝總量45
 //   世界觀：潛晶＝潛淵的力量結晶，吸收/煉化潛晶＝把它煉進自己的技藝裡（越投入越純熟＝歷練）。
 // ========================================
 
-// 歷練等級：每級讓「血量／普攻／技能傷害」一起 ×TRAIN_GROWTH_RATE（溫和成長，數值不膨脹）。
-// 歷練 1 級＝基礎值（不加成）；每往上一級 +9%。
-const TRAIN_GROWTH_RATE = 1.09;
+// 歷練等級：每級讓「血量／普攻／技能傷害」一起 ×TRAIN_GROWTH_RATE。
+// 【納可鐵則：升級要「很久升一次，但一次有感」】——費用跨度大、升級幅度也大，玩家不用一直點小升級。
+// 歷練 1 級＝基礎值（不加成）；每往上一級 +25%（大跳，一升就有感，也追得上越深越硬的怪）。
+const TRAIN_GROWTH_RATE = 1.25;
 const TRAIN_LEVEL_CAP = 20; // 寬鬆上限，避免無限升
-// 歷練升級成本：Lv1→2 = 15 潛晶，之後每級 ×1.5 無條件進位（15→23→35→53…）＝溫和指數，越高越貴。
+// 歷練升級成本：跨度大（約 ×2）＝1→2 花 20，之後 40→80→160→320…，是要存一陣子才升一次的大投資。
 function getTrainUpgradeCost(currentTrainLevel) {
-  let cost = 15;
-  for (let lv = 1; lv < currentTrainLevel; lv++) cost = Math.ceil(cost * 1.5);
+  let cost = 20; // 1→2
+  for (let lv = 2; lv <= currentTrainLevel; lv++) cost = Math.ceil(cost * 2 / 5) * 5; // 每往上一級成本約 ×2（湊 5 的整數好讀）
   return cost;
 }
 
