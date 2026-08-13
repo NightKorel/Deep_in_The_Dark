@@ -908,8 +908,9 @@ function resolveNormalAttack(casterId, targetUid) {
     results.push(Object.assign({ name: enemy.name }, dealDamageToEnemy(casterId, enemy, range, { isNormalAttack: true })));
   }
   logBattle(`${displayName(casterId)} 使用「攻擊」，對 ${summarizeHits(results)}。`);
-  logBattle(`⚡ ${displayName(casterId)} 獲得蓄勢。`);
-  m.chargeReady = true; // 普攻後獲得蓄勢（不可疊加，這裡直接覆蓋）
+  // 【納可 2026-08-13 拍板：取消普攻給蓄勢】普攻不再自動獲得蓄勢——它偷偷給「下一擊幾乎每次 +20%」，
+  //   是讓數值失控、又難算的隱形放大器。普攻回歸「沒技能可用時的弱填招」。蓄勢機制保留給刻意的來源
+  //   （V 蓄力技、碧翎液魔藥、遺物、敵方青羽鼓翼）。
   finishAllyAction();
 }
 
